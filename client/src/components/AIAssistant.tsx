@@ -9,7 +9,7 @@ type Message = {
   timestamp: string;
 };
 
-const AIAssistantPopup: React.FC<{ serverUrl?: string }> = ({ serverUrl = "/chat" }) => {
+const AIAssistantPopup: React.FC<{ serverUrl?: string }> = ({ serverUrl = "http://localhost:5000/chat" }) => {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState("");
@@ -26,21 +26,23 @@ const AIAssistantPopup: React.FC<{ serverUrl?: string }> = ({ serverUrl = "/chat
     scrollToBottom();
   }, [messages, isTyping, scrollToBottom]);
 
-  const generateResponse = async (userMessage: string): Promise<string> => {
-    try {
-      const res = await fetch(serverUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userMessage }),
-      });
-      if (!res.ok) return "⚠️ The server returned an error.";
-      const data = await res.json();
-      return data.reply ?? data.text ?? "⚠️ Sorry, I couldn't understand that.";
-    } catch (err) {
-      console.error("AI API error:", err);
-      return "⚠️ I'm having trouble reaching the server.";
-    }
-  };
+const generateResponse = async (userMessage: string): Promise<string> => {
+  try {
+    const res = await fetch("http://localhost:5000/chat", {  // 👈 fixed
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: userMessage }),
+    });
+
+    const data = await res.json();
+    return data.reply ?? "⚠️ Sorry, I couldn’t understand that.";
+  } catch (err) {
+    console.error("AI API error:", err);
+    return "⚠️ I'm having trouble reaching the server.";
+  }
+};
+
+
 
   const sendMessage = async (text?: string) => {
     const trimmed = (text ?? inputMessage).trim();

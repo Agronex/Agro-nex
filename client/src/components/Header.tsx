@@ -41,7 +41,7 @@ const Header: React.FC<HeaderProps> = ({ alerts, onMenuToggle, isMenuOpen }) => 
             {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
           <div className="hidden sm:flex items-center space-x-2">
-            <h1 className="text-xl font-bold text-gray-800">FarmDash</h1>
+            <h1 className="text-xl font-bold text-gray-800">AgroNex</h1>
             <div className="flex items-center space-x-1 text-sm text-gray-600">
               {getWeatherIcon()}
               <span>28°C</span>

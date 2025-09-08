@@ -76,7 +76,7 @@ const Navigation: React.FC<NavigationProps> = ({ activeView, onViewChange, isOpe
         {/* Footer */}
         <div className="absolute bottom-4 left-4 right-4">
           <div className="text-xs text-gray-500 text-center">
-            <p>FarmDash v1.0</p>
+            <p>AgroNex v1.0</p>
             <p>Supporting farmers with technology</p>
           </div>
         </div>

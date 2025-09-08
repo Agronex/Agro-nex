@@ -40,7 +40,7 @@ const Dashboard: React.FC = () => {
       {/* Welcome Section */}
       <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-6 border border-gray-200">
         <h1 className="text-2xl font-bold text-gray-800 mb-2">
-          Welcome to FarmDash! 🌾
+          Welcome to AgroNex! 🌾
         </h1>
         <p className="text-gray-600">
           Your comprehensive farming companion for smarter agriculture. Monitor your crops, track weather, and stay connected with the farming community.
