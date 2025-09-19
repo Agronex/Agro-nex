@@ -4,7 +4,10 @@ import { WeatherData, Alert } from '../types';
 import { mockAlerts } from '../services/mockApi';
 import LoadingSpinner from './LoadingSpinner';
 import { getWeatherData } from '../services/weatherService';
+import { getIrrigationAdvice } from "../utils/irrigationUtils";
+import { getRainDetails } from "../utils/irrigationUtils";
 
+getRainDetails
 const Dashboard: React.FC = () => {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [alerts] = useState<Alert[]>(mockAlerts);
@@ -138,7 +141,7 @@ const Dashboard: React.FC = () => {
           <div className="bg-green-50 border border-green-200 rounded-lg p-4">
             <h4 className="font-medium text-green-800 mb-2">🌱 Irrigation</h4>
             <p className="text-sm text-green-700">
-              Based on current humidity (65%) and no expected rain, continue normal irrigation schedule for wheat and tomatoes.
+              Based on current humidity ({weather?.humidity || '--'}%) and {getRainDetails(weather)}, {getIrrigationAdvice(weather)}.
             </p>
           </div>
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">

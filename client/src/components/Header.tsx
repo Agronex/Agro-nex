@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Bell, User, Menu, X, Sun, Cloud, CloudRain } from 'lucide-react';
 import { Alert } from '../types';
-
+import { WeatherData } from '../types';
 interface HeaderProps {
   alerts: Alert[];
   onMenuToggle: () => void;
@@ -23,9 +23,9 @@ const Header: React.FC<HeaderProps> = ({ alerts, onMenuToggle, isMenuOpen }) => 
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
-      case 'critical': return 'text-red-600 bg-red-50';
-      case 'warning': return 'text-orange-600 bg-orange-50';
-      default: return 'text-blue-600 bg-blue-50';
+      case 'critical': return 'text-red-600 bg-red-500';
+      case 'warning': return 'text-orange-600 bg-orange-500';
+      default: return 'text-blue-600 bg-green-500';
     }
   };
 
@@ -44,7 +44,7 @@ const Header: React.FC<HeaderProps> = ({ alerts, onMenuToggle, isMenuOpen }) => 
             <h1 className="text-xl font-bold text-gray-800">AgroNex</h1>
             <div className="flex items-center space-x-1 text-sm text-gray-600">
               {getWeatherIcon()}
-              <span>28°C</span>
+              <span>{}</span>
             </div>
           </div>
         </div>

@@ -9,7 +9,7 @@ type Message = {
   timestamp: string;
 };
 
-const AIAssistantPopup: React.FC<{ serverUrl?: string }> = ({ serverUrl = "http://localhost:5000/chat" }) => {
+const AIAssistantPopup: React.FC<{ serverUrl?: string }> = () => {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState("");

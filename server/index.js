@@ -10,7 +10,7 @@ app.use(cors());
 app.use(express.json());
 
 const HF_API_TOKEN = process.env.HF_API_KEY;
-const HF_MODEL = "tiiuae/falcon-7b-instruct"; // hosted instruction model
+const HF_MODEL = "tiiuae/falcon-7b-instruct";
 
 app.post("/chat", async (req, res) => {
   const { message } = req.body;
