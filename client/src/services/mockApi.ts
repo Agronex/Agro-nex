@@ -41,11 +41,64 @@ export const mockCommunityPosts: CommunityPost[] = [
 ];
 
 
-export const getCropPrices = (): Promise<CropPrice[]> => {
-  return new Promise(resolve => {
-    setTimeout(() => resolve(mockCropPrices), 800);
-  });
+export const getCropPrices = async (): Promise<CropPrice[]> => {
+  try {
+    const url =
+      "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070?api-key=579b464db66ec23bdd000001cdd3946e44ce4aad7209ff7b23ac571b&format=json&limit=50";
+
+    const response = await fetch(url);
+    if (!response.ok) throw new Error("Failed to fetch data from API");
+
+    const result = await response.json();
+
+    const PRIORITY_COMMODITIES = [
+      "Wheat",
+      "Rice",
+      "Onion",
+      "Tomato",
+      "Potato",
+      "Corn",
+      "Mustard",
+      "Sugarcane",
+      "Paddy",
+      "Maize"
+    ];
+
+    let formatted: CropPrice[] = result.records.map((item: any, index: number) => {
+      const currentPrice = parseFloat(item.modal_price) || 0;
+      const previousPrice = parseFloat(item.min_price) || 0;
+      const change = currentPrice - previousPrice;
+      const changePercent = previousPrice
+        ? ((change / previousPrice) * 100).toFixed(2)
+        : 0;
+
+      return {
+        id: index.toString(),
+        name: item.commodity || "Unknown",
+        currentPrice,
+        previousPrice,
+        change,
+        changePercent: Number(changePercent),
+        unit: "₹/quintal",
+        market: item.market || "Market",
+      };
+    });
+
+    // ✅ Sort to prioritize farmer-focused commodities
+    formatted = formatted.sort((a, b) => {
+      const aPriority = PRIORITY_COMMODITIES.includes(a.name) ? 0 : 1;
+      const bPriority = PRIORITY_COMMODITIES.includes(b.name) ? 0 : 1;
+      return aPriority - bPriority;
+    });
+
+    return formatted;
+  } catch (error) {
+    console.error("Error fetching real crop prices:", error);
+    return [];
+  }
 };
+
+
 
 export const detectCropDisease = (imageFile: File): Promise<DiseaseDetection> => {
   return new Promise(resolve => {
