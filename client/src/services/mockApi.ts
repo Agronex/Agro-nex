@@ -44,7 +44,7 @@ export const mockCommunityPosts: CommunityPost[] = [
 export const getCropPrices = async (): Promise<CropPrice[]> => {
   try {
     const url =
-      "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070?api-key=579b464db66ec23bdd000001cdd3946e44ce4aad7209ff7b23ac571b&format=json&limit=50";
+      "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070?api-key=579b464db66ec23bdd000001cdd3946e44ce4aad7209ff7b23ac571b&format=json&limit=50&filters[state]=Tamil%20Nadu&filters[district]=Thanjavur";
 
     const response = await fetch(url);
     if (!response.ok) throw new Error("Failed to fetch data from API");
@@ -97,6 +97,7 @@ export const getCropPrices = async (): Promise<CropPrice[]> => {
     return [];
   }
 };
+
 
 
 
