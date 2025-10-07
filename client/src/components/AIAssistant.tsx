@@ -26,23 +26,37 @@ const AIAssistantPopup: React.FC<{ serverUrl?: string }> = () => {
     scrollToBottom();
   }, [messages, isTyping, scrollToBottom]);
 
-const generateResponse = async (userMessage: string): Promise<string> => {
-  try {
-    const res = await fetch("http://localhost:5000/chat", {  // 👈 fixed
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: userMessage }),
-    });
+  // 🧹 Cleans markdown and unwanted formatting from AI reply
+  const cleanAIResponse = (text: string): string => {
+    return text
+      .replace(/#{1,6}\s*/g, "") // remove markdown headers
+      .replace(/\*\*(.*?)\*\*/g, "$1") // bold
+      .replace(/\*(.*?)\*/g, "$1") // italic
+      .replace(/`{1,3}(.*?)`{1,3}/g, "$1") // code blocks
+      .replace(/-{3,}/g, "") // remove horizontal rules
+      .replace(/\|/g, " ") // remove table pipes
+      .replace(/\n{2,}/g, "\n") // normalize newlines
+      .replace(/&nbsp;/g, " ")
+      .replace(/•/g, "• ")
+      .trim();
+  };
 
-    const data = await res.json();
-    return data.reply ?? "⚠️ Sorry, I couldn’t understand that.";
-  } catch (err) {
-    console.error("AI API error:", err);
-    return "⚠️ I'm having trouble reaching the server.";
-  }
-};
+  const generateResponse = async (userMessage: string): Promise<string> => {
+    try {
+      const res = await fetch("http://localhost:5000/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: userMessage }),
+      });
 
-
+      const data = await res.json();
+      const reply = data.reply ?? "⚠️ Sorry, I couldn’t understand that.";
+      return cleanAIResponse(reply);
+    } catch (err) {
+      console.error("AI API error:", err);
+      return "⚠️ I'm having trouble reaching the server.";
+    }
+  };
 
   const sendMessage = async (text?: string) => {
     const trimmed = (text ?? inputMessage).trim();
@@ -88,7 +102,6 @@ const generateResponse = async (userMessage: string): Promise<string> => {
 
   return (
     <div className="fixed bottom-4 right-4 z-50 flex flex-col items-end">
-      {/* Overlay */}
       <AnimatePresence>
         {open && (
           <motion.div
@@ -102,7 +115,6 @@ const generateResponse = async (userMessage: string): Promise<string> => {
         )}
       </AnimatePresence>
 
-      {/* Chat window */}
       <AnimatePresence>
         {open && (
           <motion.div
@@ -111,10 +123,8 @@ const generateResponse = async (userMessage: string): Promise<string> => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 30 }}
             transition={{ duration: 0.25 }}
-            // ⬇️ raise chatbox a bit to avoid overlap
             className="fixed bottom-20 right-6 w-[25vw] h-[25vh] min-w-[280px] min-h-[320px] max-w-[90vw] max-h-[70vh] bg-white shadow-2xl rounded-xl flex flex-col z-50"
           >
-            {/* Header */}
             <div className="flex items-center justify-between px-3 py-2 border-b">
               <div className="flex items-center gap-2">
                 <Bot className="w-4 h-4 text-green-600" />
@@ -129,7 +139,6 @@ const generateResponse = async (userMessage: string): Promise<string> => {
               </button>
             </div>
 
-            {/* Messages */}
             <div
               ref={containerRef}
               className="flex-1 overflow-y-auto p-2 space-y-2 bg-gray-50 text-sm"
@@ -145,7 +154,7 @@ const generateResponse = async (userMessage: string): Promise<string> => {
                     <Bot className="w-4 h-4 mt-1 text-green-600 mr-1" />
                   )}
                   <div
-                    className={`rounded-xl px-3 py-2 max-w-[70%] break-words text-xs ${
+                    className={`rounded-xl px-3 py-2 max-w-[70%] break-words text-xs whitespace-pre-line ${
                       msg.type === "user"
                         ? "bg-green-600 text-white"
                         : "bg-white text-gray-900 shadow"
@@ -172,7 +181,6 @@ const generateResponse = async (userMessage: string): Promise<string> => {
               )}
             </div>
 
-            {/* Controls */}
             <div className="p-2 border-t">
               <div className="grid grid-cols-2 gap-2 mb-2">
                 {quickQs.map((q) => (
@@ -210,7 +218,6 @@ const generateResponse = async (userMessage: string): Promise<string> => {
         )}
       </AnimatePresence>
 
-      {/* Floating toggle button */}
       <button
         onClick={() => setOpen((v) => !v)}
         aria-label={open ? "Close chat" : "Open chat"}

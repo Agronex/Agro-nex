@@ -1,214 +1,255 @@
-import React, { useState, useCallback } from 'react';
-import { Camera, Upload, AlertTriangle, CheckCircle, X } from 'lucide-react';
-import { DiseaseDetection } from '../types';
-import { detectCropDisease } from '../services/mockApi';
-import LoadingSpinner from './LoadingSpinner';
+import React, { useState, useCallback } from "react";
+import { Camera, Upload, AlertTriangle, X } from "lucide-react";
+import LoadingSpinner from "./LoadingSpinner";
+
+const preventiveMeasures: Record<string, string> = {
+  "Corn___Common_Rust": "Plant resistant varieties, remove infected debris, avoid overhead irrigation, monitor moisture levels.",
+  "Corn___Gray_Leaf_Spot": "Rotate crops, control weeds, remove infected plant debris, apply fungicides if necessary.",
+  "Corn___Leaf_Blight": "Use disease-free seeds, maintain proper spacing, apply fungicides, remove infected leaves.",
+  "Corn___Healthy": "Your corn appears healthy. Maintain proper watering and fertilization practices.",
+  "Potato___Early_Blight": "Remove infected leaves, rotate crops, avoid overhead irrigation, and apply copper-based fungicides if needed.",
+  "Potato___Late_Blight": "Remove and destroy infected plants, ensure proper drainage, use resistant varieties, apply fungicides early.",
+  "Potato___Healthy": "Your potato crop looks healthy. Keep monitoring and follow good agricultural practices.",
+  "Rice___Brown_Spot": "Apply balanced fertilization, avoid excessive nitrogen, rotate crops, and treat soil if needed.",
+  "Rice___Leaf_Blast": "Use resistant rice varieties, maintain proper water levels, and apply fungicides on early infection.",
+  "Rice___Healthy": "Your rice crop appears healthy. Continue good cultivation practices.",
+  "Wheat___Brown_Rust": "Plant resistant wheat varieties, avoid dense planting, remove infected plants, apply fungicides if necessary.",
+  "Wheat___Yellow_Rust": "Use resistant varieties, remove volunteer wheat, ensure crop rotation, and apply fungicides if needed.",
+  "Wheat___Healthy": "Your wheat crop looks healthy. Maintain optimal soil and irrigation management.",
+  "Invalid": "Please upload a valid image file.",
+  "Default": "Follow good agricultural practices.",
+};
+
+const diseaseDetails: Record<string, string> = {
+  "Corn___Common_Rust": "A fungal disease caused by *Puccinia sorghi*, forming reddish-brown pustules on leaves that reduce photosynthesis and yield.",
+  "Corn___Gray_Leaf_Spot": "Caused by *Cercospora zeae-maydis*, it creates rectangular gray lesions that limit photosynthesis and weaken the plant.",
+  "Corn___Leaf_Blight": "A foliar disease that leads to elongated brown lesions, causing premature leaf death and yield loss.",
+  "Corn___Healthy": "Your corn appears healthy. No visible symptoms of disease detected.",
+  "Potato___Early_Blight": "Caused by *Alternaria solani*, it forms dark concentric spots on older leaves, leading to leaf drop and reduced yield.",
+  "Potato___Late_Blight": "Caused by *Phytophthora infestans*, it produces water-soaked lesions that turn brown, affecting both leaves and tubers severely.",
+  "Potato___Healthy": "Your potato crop is healthy. No signs of early or late blight observed.",
+  "Rice___Brown_Spot": "Caused by *Bipolaris oryzae*, it forms brown oval lesions on leaves and grains, reducing plant vigor and grain quality.",
+  "Rice___Leaf_Blast": "A major fungal disease by *Magnaporthe oryzae*, causing spindle-shaped lesions that lead to leaf death and yield loss.",
+  "Rice___Healthy": "Your rice plants appear healthy with no disease symptoms.",
+  "Wheat___Brown_Rust": "Caused by *Puccinia triticina*, it creates small orange-brown pustules on leaves, reducing photosynthesis and grain filling.",
+  "Wheat___Yellow_Rust": "Caused by *Puccinia striiformis*, it forms yellow stripes on leaves, leading to stunted growth and lower yield.",
+  "Wheat___Healthy": "Your wheat crop looks healthy. No rust or leaf spots observed.",
+  "Invalid": "Invalid input image. Please upload a clear image of a crop leaf.",
+  "Default": "No detailed information available for this disease.",
+};
+
+interface Prediction {
+  label: string;
+  score: number;
+}
 
 const CropDiseaseDetection: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [detecting, setDetecting] = useState(false);
-  const [result, setResult] = useState<DiseaseDetection | null>(null);
   const [dragActive, setDragActive] = useState(false);
+  const [detecting, setDetecting] = useState(false);
+  const [predictions, setPredictions] = useState<Prediction[]>([]);
 
   const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    e.stopPropagation();
     setDragActive(false);
-    
     const files = e.dataTransfer.files;
-    if (files && files[0]) {
-      const file = files[0];
-      if (file.type.startsWith('image/')) {
-        setSelectedFile(file);
-        setResult(null);
-      }
+    if (files && files[0] && files[0].type.startsWith("image/")) {
+      setSelectedFile(files[0]);
+      setPredictions([]);
     }
-  }, []);
-
-  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(true);
-  }, []);
-
-  const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
   }, []);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setSelectedFile(file);
-      setResult(null);
+      setPredictions([]);
     }
   };
 
+  // 🔄 Function to call your backend API
   const analyzeImage = async () => {
-    if (!selectedFile) return;
+  if (!selectedFile) return;
+  setDetecting(true);
 
-    setDetecting(true);
-    try {
-      const detection = await detectCropDisease(selectedFile);
-      setResult(detection);
-    } catch (error) {
-      console.error('Disease detection failed:', error);
-    } finally {
-      setDetecting(false);
-    }
-  };
+  try {
+    const formData = new FormData();
+    formData.append("image", selectedFile);
 
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case 'high': return 'text-red-600 bg-red-50 border-red-200';
-      case 'medium': return 'text-orange-600 bg-orange-50 border-orange-200';
-      case 'low': return 'text-green-600 bg-green-50 border-green-200';
-      default: return 'text-gray-600 bg-gray-50 border-gray-200';
+    // ✅ Matches your Express route setup
+    const response = await fetch("http://localhost:5000/disease", {
+  method: "POST",
+  body: formData,
+});
+
+
+    if (!response.ok) throw new Error("Server error. Please try again.");
+
+    const data = await response.json();
+
+    if (Array.isArray(data) && data.length > 0) {
+      const top = data.sort((a, b) => b.score - a.score)[0];
+      setPredictions([top]);
+    } else {
+      setPredictions([]);
     }
+  } catch (err) {
+    console.error("Error analyzing image:", err);
+    alert("⚠️ Failed to analyze image. Please try again.");
+  } finally {
+    setDetecting(false);
+  }
+};
+
+  const majorDiseases = [
+    "Corn___Leaf_Blight",
+    "Potato___Late_Blight",
+    "Rice___Leaf_Blast",
+    "Wheat___Brown_Rust",
+    "Wheat___Yellow_Rust",
+    "Invalid",
+  ];
+  const healthy = [
+    "Healthy",
+    "Potato___Healthy",
+    "Corn___Healthy",
+    "Rice___Healthy",
+    "Wheat___Healthy",
+  ];
+  const minorDiseases = [
+    "Corn___Common_Rust",
+    "Corn___Gray_Leaf_Spot",
+    "Potato___Early_Blight",
+    "Rice___Brown_Spot",
+  ];
+
+  const getSeverityColor = (label: string) => {
+    if (healthy.includes(label))
+      return "text-green-600 bg-green-50 border-green-200";
+    if (majorDiseases.includes(label))
+      return "text-red-600 bg-red-50 border-red-200";
+    if (minorDiseases.includes(label))
+      return "text-orange-600 bg-orange-50 border-orange-200";
+    return "text-gray-600 bg-gray-50 border-gray-200";
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 w-full min-h-screen flex flex-col items-center">
       <div className="flex items-center space-x-3 mb-6">
         <Camera className="w-6 h-6 text-green-600" />
         <h3 className="text-xl font-bold text-gray-800">Crop Disease Detection</h3>
       </div>
 
-      {!selectedFile && !result && (
-        <div
-          className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-            dragActive ? 'border-green-500 bg-green-50' : 'border-gray-300'
-          }`}
-          onDrop={handleDrop}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-        >
-          <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h4 className="text-lg font-semibold text-gray-700 mb-2">Upload Plant Image</h4>
-          <p className="text-gray-600 mb-4">
-            Drag and drop an image of your crop or click to browse
-          </p>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleFileSelect}
-            className="hidden"
-            id="image-upload"
-          />
-          <label
-            htmlFor="image-upload"
-            className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors cursor-pointer"
+      <div className="w-full max-w-4xl">
+        {!selectedFile && predictions.length === 0 && (
+          <div
+            className={`border-2 border-dashed rounded-lg p-8 text-center ${
+              dragActive ? "border-green-500 bg-green-50" : "border-gray-300"
+            }`}
+            onDrop={handleDrop}
+            onDragOver={(e) => e.preventDefault()}
+            onDragLeave={(e) => e.preventDefault()}
           >
-            <Upload className="w-4 h-4 mr-2" />
-            Choose Image
-          </label>
-        </div>
-      )}
-
-      {selectedFile && !result && (
-        <div className="space-y-4">
-          <div className="relative">
-            <img
-              src={URL.createObjectURL(selectedFile)}
-              alt="Selected crop"
-              className="w-full max-h-64 object-cover rounded-lg"
+            <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <h4 className="text-lg font-semibold text-gray-700 mb-2">Upload Plant Image</h4>
+            <p className="text-gray-600 mb-4">Drag and drop or click to browse</p>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleFileSelect}
+              className="hidden"
+              id="image-upload"
             />
-            <button
-              onClick={() => setSelectedFile(null)}
-              className="absolute top-2 right-2 p-1 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors"
+            <label
+              htmlFor="image-upload"
+              className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors cursor-pointer"
             >
-              <X className="w-4 h-4" />
-            </button>
+              <Upload className="w-4 h-4 mr-2" />
+              Choose Image
+            </label>
           </div>
-          <div className="text-center">
-            <p className="text-gray-600 mb-4">Image ready for analysis</p>
-            <button
-              onClick={analyzeImage}
-              disabled={detecting}
-              className="inline-flex items-center px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {detecting ? (
-                <>
-                  <LoadingSpinner size="sm" className="mr-2" />
-                  Analyzing...
-                </>
-              ) : (
-                <>
-                  <Camera className="w-4 h-4 mr-2" />
-                  Analyze Image
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-      )}
+        )}
 
-      {result && (
-        <div className="space-y-6">
-          {/* Results Header */}
-          <div className="flex items-center justify-between">
-            <h4 className="text-lg font-semibold text-gray-800">Detection Results</h4>
-            <button
-              onClick={() => {
-                setResult(null);
-                setSelectedFile(null);
-              }}
-              className="text-gray-500 hover:text-gray-700 transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          {/* Disease Detection */}
-          <div className={`rounded-lg border p-4 ${getSeverityColor(result.severity)}`}>
-            <div className="flex items-start space-x-3">
-              <AlertTriangle className="w-6 h-6 mt-1" />
-              <div>
-                <h5 className="font-semibold mb-1">{result.detectedDisease}</h5>
-                <p className="text-sm opacity-90">
-                  Confidence: {result.confidence}% | Severity: {result.severity.toUpperCase()}
-                </p>
-              </div>
+        {selectedFile && predictions.length === 0 && (
+          <div className="space-y-4 mt-4">
+            <div className="relative">
+              <img
+                src={URL.createObjectURL(selectedFile)}
+                alt="Selected crop"
+                className="w-full object-contain max-h-[500px] rounded-lg"
+              />
+              <button
+                onClick={() => setSelectedFile(null)}
+                className="absolute top-2 right-2 p-1 bg-red-600 text-white rounded-full hover:bg-red-700"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="text-center">
+              <p className="text-gray-600 mb-4">Image ready for analysis</p>
+              <button
+                onClick={analyzeImage}
+                disabled={detecting}
+                className="inline-flex items-center px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+              >
+                {detecting ? (
+                  <>
+                    <LoadingSpinner size="sm" className="mr-2" />
+                    Analyzing...
+                  </>
+                ) : (
+                  <>
+                    <Camera className="w-4 h-4 mr-2" />
+                    Analyze Image
+                  </>
+                )}
+              </button>
             </div>
           </div>
+        )}
 
-          {/* Treatment */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h5 className="font-semibold text-blue-800 mb-2 flex items-center">
-              <CheckCircle className="w-4 h-4 mr-2" />
-              Recommended Treatment
-            </h5>
-            <p className="text-blue-700 text-sm">{result.treatment}</p>
-          </div>
+        {predictions.length > 0 && (
+          <div className="space-y-6 mt-6 w-full max-w-2xl">
+            {predictions.map((pred, index) => {
+              const preventive = preventiveMeasures[pred.label] || preventiveMeasures["Default"];
+              return (
+                <div key={index} className={`rounded-lg border p-4 ${getSeverityColor(pred.label)}`}>
+                  <div className="flex items-start space-x-3">
+                    <AlertTriangle className="w-6 h-6 mt-1" />
+                    <div>
+                      <h5 className="font-semibold mb-1">{pred.label}</h5>
+                      {pred.label.includes("Healthy") ? (
+                        <p className="text-sm mt-1">{preventive}</p>
+                      ) : (
+                        <>
+                          <p className="text-sm mt-1">
+                            <strong>Brief Details:</strong> {diseaseDetails[pred.label] || diseaseDetails["Default"]}
+                          </p>
+                          <p className="text-sm mt-1">
+                            <strong>Recommended Treatments:</strong> {preventive}
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
 
-          {/* Preventive Measures */}
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-            <h5 className="font-semibold text-green-800 mb-3">Preventive Measures</h5>
-            <ul className="space-y-2">
-              {result.preventiveMeasures.map((measure, index) => (
-                <li key={index} className="flex items-start text-sm text-green-700">
-                  <span className="w-2 h-2 bg-green-500 rounded-full mt-2 mr-3 flex-shrink-0"></span>
-                  {measure}
-                </li>
-              ))}
-            </ul>
+            <div className="text-center pt-4 border-t border-gray-200">
+              <button
+                onClick={() => {
+                  setSelectedFile(null);
+                  setPredictions([]);
+                }}
+                className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+              >
+                Analyze Another Image
+              </button>
+            </div>
           </div>
-
-          {/* New Analysis Button */}
-          <div className="text-center pt-4 border-t border-gray-200">
-            <button
-              onClick={() => {
-                setResult(null);
-                setSelectedFile(null);
-              }}
-              className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-            >
-              Analyze Another Image
-            </button>
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };
