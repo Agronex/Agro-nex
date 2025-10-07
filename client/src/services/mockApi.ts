@@ -16,30 +16,111 @@ export const mockAlerts: Alert[] = [
   { id: '4', type: 'disease', severity: 'warning', title: 'Fungal Disease Alert', message: 'High humidity levels may promote fungal diseases. Apply preventive fungicides.', timestamp: '2025-01-17T16:45:00Z', read: true }
 ];
 
-export const mockYieldPrediction: YieldPrediction = {
-  cropName: 'Wheat',
-  expectedYield: 45.2,
-  confidence: 87,
-  factors: {
-    weather: 85,
-    soil: 78,
-    irrigation: 92,
-    pestControl: 88
+// ✅ Mock yield predictions for multiple crops
+export const mockYieldPredictions: YieldPrediction[] = [
+  {
+    cropName: 'Wheat',
+    expectedYield: 45.2,
+    confidence: 87,
+    factors: { weather: 85, soil: 78, irrigation: 92, pestControl: 88 },
+    recommendations: [
+      'Continue current irrigation schedule',
+      'Monitor for rust diseases in the coming weeks',
+      'Consider nitrogen top-dressing at flowering stage',
+      'Plan harvest timing based on weather forecast'
+    ]
   },
-  recommendations: [
-    'Continue current irrigation schedule',
-    'Monitor for rust diseases in the coming weeks',
-    'Consider nitrogen top-dressing at flowering stage',
-    'Plan harvest timing based on weather forecast'
-  ]
-};
+  {
+    cropName: 'Rice',
+    expectedYield: 52.1,
+    confidence: 90,
+    factors: { weather: 88, soil: 80, irrigation: 95, pestControl: 85 },
+    recommendations: [
+      'Maintain water level at optimal height',
+      'Apply balanced fertilization',
+      'Monitor for leaf blast disease',
+      'Prepare for harvesting based on weather forecast'
+    ]
+  },
+  {
+    cropName: 'Corn',
+    expectedYield: 38.7,
+    confidence: 85,
+    factors: { weather: 82, soil: 77, irrigation: 90, pestControl: 86 },
+    recommendations: [
+      'Monitor for common rust and gray leaf spot',
+      'Maintain soil moisture',
+      'Apply fungicides if necessary',
+      'Ensure proper fertilization'
+    ]
+  },
+  {
+    cropName: 'Tomato',
+    expectedYield: 24.5,
+    confidence: 88,
+    factors: { weather: 80, soil: 75, irrigation: 93, pestControl: 90 },
+    recommendations: [
+      'Maintain drip irrigation schedule',
+      'Monitor for aphid infestation',
+      'Apply organic pesticides if needed',
+      'Harvest when fruits are mature'
+    ]
+  },
+  {
+    cropName: 'Onion',
+    expectedYield: 30.2,
+    confidence: 86,
+    factors: { weather: 83, soil: 78, irrigation: 89, pestControl: 84 },
+    recommendations: [
+      'Monitor for thrips',
+      'Maintain soil moisture',
+      'Apply balanced fertilization',
+      'Harvest according to bulb maturity'
+    ]
+  },
+  {
+    cropName: 'Potato',
+    expectedYield: 42.8,
+    confidence: 87,
+    factors: { weather: 85, soil: 80, irrigation: 92, pestControl: 88 },
+    recommendations: [
+      'Ensure proper hilling and spacing',
+      'Monitor for late blight',
+      'Apply fungicides early',
+      'Maintain soil moisture'
+    ]
+  },
+  {
+    cropName: 'Cotton',
+    expectedYield: 35.6,
+    confidence: 84,
+    factors: { weather: 80, soil: 76, irrigation: 88, pestControl: 82 },
+    recommendations: [
+      'Monitor for bollworm',
+      'Ensure proper irrigation',
+      'Apply balanced fertilization',
+      'Follow integrated pest management'
+    ]
+  },
+  {
+    cropName: 'Sugarcane',
+    expectedYield: 95.3,
+    confidence: 89,
+    factors: { weather: 87, soil: 81, irrigation: 94, pestControl: 86 },
+    recommendations: [
+      'Maintain proper irrigation schedule',
+      'Monitor for pest infestation',
+      'Ensure balanced fertilization',
+      'Prepare for harvesting based on growth stage'
+    ]
+  }
+];
 
 export const mockCommunityPosts: CommunityPost[] = [
   { id: '1', author: 'Ravi Kumar', title: 'Best practices for organic wheat farming', content: 'I\'ve been practicing organic wheat farming for 5 years...', category: 'tip', timestamp: '2025-01-18T12:00:00Z', likes: 24, replies: 8 },
   { id: '2', author: 'Priya Sharma', title: 'How to deal with pest attacks in tomatoes?', content: 'My tomato plants are showing signs of pest damage...', category: 'question', timestamp: '2025-01-18T09:30:00Z', likes: 12, replies: 15 },
   { id: '3', author: 'Amit Singh', title: 'Record harvest this season!', content: 'Thanks to proper soil management and timely irrigation...', category: 'success', timestamp: '2025-01-17T18:20:00Z', likes: 45, replies: 12 }
 ];
-
 
 export const getCropPrices = async (): Promise<CropPrice[]> => {
   try {
@@ -98,8 +179,18 @@ export const getCropPrices = async (): Promise<CropPrice[]> => {
   }
 };
 
+// ✅ Updated function to return correct mock for requested cropName
 export const getYieldPrediction = (cropName: string): Promise<YieldPrediction> => {
-  return new Promise(resolve => {
-    setTimeout(() => resolve({...mockYieldPrediction, cropName}), 1500);
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      const prediction = mockYieldPredictions.find(
+        p => p.cropName.toLowerCase() === cropName.toLowerCase()
+      );
+      if (prediction) {
+        resolve(prediction);
+      } else {
+        reject(new Error(`No yield prediction found for crop: ${cropName}`));
+      }
+    }, 1500); // simulate API delay
   });
 };
