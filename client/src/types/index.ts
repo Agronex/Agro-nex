@@ -42,6 +42,9 @@ export interface CropRecord {
 }
 
 export interface DiseaseDetection {
+  suggestions: any;
+  plantName: any;
+  similarImage: any;
   id: string;
   imageName: string;
   detectedDisease: string;
@@ -75,13 +78,14 @@ export interface YieldPrediction {
   recommendations: string[];
 }
 
+// src/types.ts
 export interface CommunityPost {
-  id: string;
-  author: string;
+  id: string; 
+  author: string; // user displayName or email
   title: string;
   content: string;
   category: 'question' | 'tip' | 'success' | 'alert';
-  timestamp: string;
+  timestamp: any; // Firestore timestamp (serverTimestamp) or ISO string
   likes: number;
   replies: number;
 }

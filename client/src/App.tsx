@@ -7,19 +7,23 @@ import CropDiseaseDetection from "./components/CropDiseaseDetection";
 import MarketPrices from "./components/MarketPrices";
 import YieldPrediction from "./components/YieldPrediction";
 import FarmLogbook from "./components/FarmLogbook";
-import AIAssistantPopup from "./components/AIAssistant"; // ✅ use the popup version
+import AIAssistantPopup from "./components/AIAssistant";
 import CommunityConnect from "./components/CommunityConnect";
 import { mockAlerts } from "./services/mockApi";
-
+import { useAuth } from "./contexts/AuthContext"; // Auth context
+import Login from "./components/Login"; // Login page component
+import { signOut } from "firebase/auth";
+import { auth } from "./firebase";
+import SettingsPanel from "./components/Settings";
 // Reusable Settings Panel
-const SettingsPanel = () => (
-  <div className="bg-white rounded-2xl shadow-md border border-gray-200 p-8">
-    <h3 className="text-2xl font-bold text-gray-800 mb-6">Settings</h3>
-    <p className="text-gray-600">Settings panel coming soon...</p>
-  </div>
-);
+
 
 function App() {
+  const { user } = useAuth(); // Get current user
+
+  // If not logged in, show login page
+  if (!user) return <Login />;
+
   const [activeView, setActiveView] = useState("dashboard");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -60,11 +64,12 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Header */}
+      {/* Header with Logout */}
       <Header
         alerts={mockAlerts}
         onMenuToggle={handleMenuToggle}
         isMenuOpen={isMenuOpen}
+        showLogout={true} // optional prop to show logout button
       />
 
       <div className="flex flex-1">

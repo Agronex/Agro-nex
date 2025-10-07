@@ -1,7 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState,useEffect } from 'react';
 import { Bell, User, Menu, X, Sun, Cloud, CloudRain } from 'lucide-react';
 import { Alert } from '../types';
+import { getWeatherData } from '../services/weatherService';
 import { WeatherData } from '../types';
+
+// Removed unused WeatherWidget component to resolve the error.
 interface HeaderProps {
   alerts: Alert[];
   onMenuToggle: () => void;
@@ -104,10 +107,10 @@ const Header: React.FC<HeaderProps> = ({ alerts, onMenuToggle, isMenuOpen }) => 
       {/* Mobile Header Title */}
       <div className="sm:hidden px-4 pb-3">
         <div className="flex items-center justify-between">
-          <h1 className="text-lg font-bold text-gray-800">FarmDash</h1>
+          <h1 className="text-lg font-bold text-gray-800">Agronex</h1>
           <div className="flex items-center space-x-1 text-sm text-gray-600">
             {getWeatherIcon()}
-            <span>28°C</span>
+            <span>{getWeatherData.temparature}</span>
           </div>
         </div>
       </div>
