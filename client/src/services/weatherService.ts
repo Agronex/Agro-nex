@@ -1,10 +1,23 @@
 import axios from "axios";
 
 const BACKEND_URL = "https://agronex.onrender.com";
+const CACHE_KEY = "weatherData";
+const CACHE_TTL = 10 * 60 * 1000; // 10 minutes in milliseconds
 
-// Get weather using user location
 export async function getWeatherData(): Promise<any> {
-  // Get user's current location
+  // Check cache first
+  const cached = localStorage.getItem(CACHE_KEY);
+  if (cached) {
+    const { data, timestamp } = JSON.parse(cached);
+    const now = new Date().getTime();
+
+    // If cached data is still valid, return it
+    if (now - timestamp < CACHE_TTL) {
+      return data;
+    }
+  }
+
+  // Fetch fresh data
   const position = await new Promise<GeolocationPosition>((resolve, reject) =>
     navigator.geolocation.getCurrentPosition(resolve, reject)
   );
@@ -12,7 +25,13 @@ export async function getWeatherData(): Promise<any> {
   const lat = position.coords.latitude;
   const lon = position.coords.longitude;
 
-  // Call backend instead of Open-Meteo directly
   const response = await axios.post(`${BACKEND_URL}/weather`, { lat, lon });
-  return response.data; // backend gives clean WeatherData
+
+  // Cache the data
+  localStorage.setItem(
+    CACHE_KEY,
+    JSON.stringify({ data: response.data, timestamp: new Date().getTime() })
+  );
+
+  return response.data;
 }
