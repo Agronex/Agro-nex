@@ -3,7 +3,7 @@ export async function detectCropDisease(file: File) {
   const formData = new FormData();
   formData.append("image", file);
 
-  const response = await fetch("http://localhost:5000/disease", {
+  const response = await fetch("https://agronex.onrender.com/disease", {
     method: "POST",
     body: formData,
   });

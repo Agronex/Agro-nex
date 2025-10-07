@@ -77,7 +77,7 @@ const CropDiseaseDetection: React.FC = () => {
     formData.append("image", selectedFile);
 
     // ✅ Matches your Express route setup
-    const response = await fetch("http://localhost:5000/disease", {
+    const response = await fetch("https://agronex.onrender.com/disease", {
   method: "POST",
   body: formData,
 });
