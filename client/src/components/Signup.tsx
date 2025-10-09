@@ -1,12 +1,15 @@
 import React, { useState } from "react";
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../firebase";
+import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { auth, db } from "../firebase";
 import { motion, AnimatePresence } from "framer-motion";
 import Login from "./Login";
 import farmImg from "../images/farm2.jpg";
+import { doc, setDoc } from "firebase/firestore";
+
 
 const Signup: React.FC = () => {
   const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
@@ -14,19 +17,35 @@ const Signup: React.FC = () => {
   const [showLogin, setShowLogin] = useState(false);
 
   const handleSignup = async () => {
-    setError("");
-    setLoading(true);
-    try {
-      await createUserWithEmailAndPassword(auth, email, password);
-      setSuccess(true);
+  setError("");
+  setLoading(true);
 
-      // Wait briefly before redirecting to login
-      setTimeout(() => setShowLogin(true), 1500);
-    } catch (err: any) {
-      setError(err.message);
-      setLoading(false);  // Stop loading on error
-    }
-  };
+  try {
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
+
+    // ✅ Update display name in Firebase Auth
+    await updateProfile(user, {
+      displayName: username,
+    });
+
+    // ✅ Store additional profile info in Firestore
+    await setDoc(doc(db, "users", user.uid), {
+      username: username,
+      email: email,
+      createdAt: new Date(),
+      profileImage: "", // optional: placeholder for profile pic
+      bio: "",
+    });
+
+    setSuccess(true);
+    setTimeout(() => setShowLogin(true), 1500);
+  } catch (err: any) {
+    setError(err.message);
+    setLoading(false);
+  }
+};
+
 
   return (
     <AnimatePresence mode="wait">
@@ -75,6 +94,14 @@ const Signup: React.FC = () => {
 
               {error && <p className="text-red-500 mb-2">{error}</p>}
               {success && <p className="text-green-500 mb-2">Signup successful! Redirecting...</p>}
+              <input
+                type="text"
+                placeholder="Username"
+                className="w-full p-3 border rounded mb-4 focus:ring-2 focus:ring-green-400 outline-none"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                disabled={loading}
+              />
 
               <input
                 type="email"
