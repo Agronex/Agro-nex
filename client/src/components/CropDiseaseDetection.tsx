@@ -242,6 +242,9 @@ const CropDiseaseDetection: React.FC = () => {
                       <h5 className="text-lg font-semibold mb-1">
                         {pred.label.replace(/_/g, " ")}
                       </h5>
+                      <p className="text-sm opacity-80">
+                        Confidence: {(pred.score * 100).toFixed(2)}%
+                      </p>
                     </div>
                   </div>
                 </div>
