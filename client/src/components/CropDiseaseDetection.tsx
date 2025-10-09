@@ -209,46 +209,100 @@ const CropDiseaseDetection: React.FC = () => {
         )}
 
         {predictions.length > 0 && (
-          <div className="space-y-6 mt-6 w-full max-w-2xl">
-            {predictions.map((pred, index) => {
-              const preventive = preventiveMeasures[pred.label] || preventiveMeasures["Default"];
-              return (
-                <div key={index} className={`rounded-lg border p-4 ${getSeverityColor(pred.label)}`}>
+  <div className="flex justify-center w-full mt-8">
+    <div className="w-full max-w-4xl bg-gray-50 rounded-xl shadow-lg p-6 border border-gray-200">
+      {/* Image Preview */}
+      <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
+        <div className="w-full md:w-1/2">
+          <img
+            src={URL.createObjectURL(selectedFile as File)}
+            alt="Uploaded crop"
+            className="w-full rounded-lg shadow-md object-cover"
+          />
+        </div>
+
+        {/* Result Details */}
+        <div className="w-full md:w-1/2 space-y-4">
+          {predictions.map((pred, index) => {
+            const preventive =
+              preventiveMeasures[pred.label] || preventiveMeasures["Default"];
+            const details =
+              diseaseDetails[pred.label] || diseaseDetails["Default"];
+
+            return (
+              <div key={index} className="space-y-4">
+                <div
+                  className={`rounded-lg border p-4 ${getSeverityColor(
+                    pred.label
+                  )} shadow-sm`}
+                >
                   <div className="flex items-start space-x-3">
                     <AlertTriangle className="w-6 h-6 mt-1" />
                     <div>
-                      <h5 className="font-semibold mb-1">{pred.label}</h5>
-                      {pred.label.includes("Healthy") ? (
-                        <p className="text-sm mt-1">{preventive}</p>
-                      ) : (
-                        <>
-                          <p className="text-sm mt-1">
-                            <strong>Brief Details:</strong> {diseaseDetails[pred.label] || diseaseDetails["Default"]}
-                          </p>
-                          <p className="text-sm mt-1">
-                            <strong>Recommended Treatments:</strong> {preventive}
-                          </p>
-                        </>
-                      )}
+                      <h5 className="text-lg font-semibold mb-1">
+                        {pred.label.replace(/_/g, " ")}
+                      </h5>
                     </div>
                   </div>
                 </div>
-              );
-            })}
 
-            <div className="text-center pt-4 border-t border-gray-200">
-              <button
-                onClick={() => {
-                  setSelectedFile(null);
-                  setPredictions([]);
-                }}
-                className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
-              >
-                Analyze Another Image
-              </button>
-            </div>
-          </div>
-        )}
+                {/* Disease Details */}
+                {!pred.label.includes("Healthy") && (
+                  <div className="border rounded-lg bg-white shadow-sm p-4">
+                    <h6 className="font-semibold mb-2 text-gray-800">
+                      🧪 Disease Details
+                    </h6>
+                    <p className="text-sm text-gray-700">{details}</p>
+                  </div>
+                )}
+
+                {/* Preventive Measures */}
+                <div className="border rounded-lg bg-green-50 p-4 shadow-sm">
+                  <h6 className="font-semibold mb-2 text-green-800">
+                    🛡 Preventive Measures
+                  </h6>
+                  <p className="text-sm text-green-700">{preventive}</p>
+                </div>
+
+                {/* Recommended Treatments (only for diseased cases) */}
+                {!pred.label.includes("Healthy") && (
+                  <div className="border rounded-lg bg-blue-50 p-4 shadow-sm">
+                    <h6 className="font-semibold mb-2 text-blue-800">
+                      💊 Recommended Treatments
+                    </h6>
+                    <ul className="list-disc list-inside text-sm text-blue-700">
+                      {preventive
+                        .split(",")
+                        .map((item, idx) => (
+                          <li key={idx} className="mb-1">
+                            {item.trim()}
+                          </li>
+                        ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Bottom Button */}
+      <div className="text-center pt-6 border-t mt-6">
+        <button
+          onClick={() => {
+            setSelectedFile(null);
+            setPredictions([]);
+          }}
+          className="px-6 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors"
+        >
+          Analyze Another Image
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
       </div>
     </div>
   );

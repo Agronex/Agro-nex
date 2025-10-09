@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { Bell, User, Menu, X, Sun, Cloud, CloudRain } from 'lucide-react';
 import { Alert } from '../types';
-import { getWeatherData } from '../services/weatherService';
-import { WeatherData } from '../types';
 import ProfileMenu from '../components/ProfileMenu';
 
 interface HeaderProps {
@@ -48,7 +46,6 @@ const Header: React.FC<HeaderProps> = ({ alerts, onMenuToggle, isMenuOpen }) => 
             <h1 className="text-xl font-bold text-gray-800">AgroNex</h1>
             <div className="flex items-center space-x-1 text-sm text-gray-600">
               {getWeatherIcon()}
-              <span>28°C</span>
             </div>
           </div>
         </div>
@@ -123,7 +120,6 @@ const Header: React.FC<HeaderProps> = ({ alerts, onMenuToggle, isMenuOpen }) => 
           <h1 className="text-lg font-bold text-gray-800">Agronex</h1>
           <div className="flex items-center space-x-1 text-sm text-gray-600">
             {getWeatherIcon()}
-            <span>28°C</span>
           </div>
         </div>
       </div>
