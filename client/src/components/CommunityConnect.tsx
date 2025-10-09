@@ -1,9 +1,28 @@
 import React, { useState, useEffect } from "react";
-import {MessageCircle,ThumbsUp,Reply,Users,Plus,Loader,Send,X,} from "lucide-react";
+import {
+  MessageCircle,
+  ThumbsUp,
+  Reply,
+  Users,
+  Plus,
+  Loader,
+  Send,
+  X,
+} from "lucide-react";
 import { db, auth } from "../firebase";
-import {collection,addDoc,onSnapshot,query,orderBy,doc,updateDoc,increment,serverTimestamp,} from "firebase/firestore";
+import {
+  collection,
+  addDoc,
+  onSnapshot,
+  query,
+  orderBy,
+  doc,
+  updateDoc,
+  increment,
+  serverTimestamp,
+  deleteDoc,
+} from "firebase/firestore";
 import { onAuthStateChanged, User } from "firebase/auth";
-import { deleteDoc } from 'firebase/firestore';
 
 interface CommunityPost {
   id: string;
@@ -34,7 +53,6 @@ const CommunityConnect: React.FC = () => {
   const [activeFilter, setActiveFilter] = useState<string>("all");
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
-
   const [activeReplyPost, setActiveReplyPost] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
   const [replies, setReplies] = useState<Record<string, ReplyType[]>>({});
@@ -69,7 +87,7 @@ const CommunityConnect: React.FC = () => {
         collection(db, "communityPosts", post.id, "replies"),
         orderBy("timestamp", "asc")
       );
-      const unsub = onSnapshot(repliesQuery, (snapshot: { docs: any[]; }) => {
+      const unsub = onSnapshot(repliesQuery, (snapshot) => {
         const postReplies: ReplyType[] = snapshot.docs.map((doc) => ({
           id: doc.id,
           ...(doc.data() as Omit<ReplyType, "id">),
@@ -168,7 +186,7 @@ const CommunityConnect: React.FC = () => {
     : "New Post";
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+    <div className="w-full max-w-4xl mx-auto p-4 md:p-6 bg-white rounded-xl shadow-sm border border-gray-200 mt-0 overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center space-x-3">
