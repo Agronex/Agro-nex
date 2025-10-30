@@ -26,16 +26,15 @@ const AIAssistantPopup: React.FC<{ serverUrl?: string }> = () => {
     scrollToBottom();
   }, [messages, isTyping, scrollToBottom]);
 
-  // 🧹 Cleans markdown and unwanted formatting from AI reply
   const cleanAIResponse = (text: string): string => {
     return text
-      .replace(/#{1,6}\s*/g, "") // remove markdown headers
-      .replace(/\*\*(.*?)\*\*/g, "$1") // bold
-      .replace(/\*(.*?)\*/g, "$1") // italic
-      .replace(/`{1,3}(.*?)`{1,3}/g, "$1") // code blocks
-      .replace(/-{3,}/g, "") // remove horizontal rules
-      .replace(/\|/g, " ") // remove table pipes
-      .replace(/\n{2,}/g, "\n") // normalize newlines
+      .replace(/#{1,6}\s*/g, "") 
+      .replace(/\*\*(.*?)\*\*/g, "$1") 
+      .replace(/\*(.*?)\*/g, "$1") 
+      .replace(/`{1,3}(.*?)`{1,3}/g, "$1") 
+      .replace(/-{3,}/g, "") 
+      .replace(/\|/g, " ") 
+      .replace(/\n{2,}/g, "\n") 
       .replace(/&nbsp;/g, " ")
       .replace(/•/g, "• ")
       .trim();
