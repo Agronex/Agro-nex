@@ -8,7 +8,6 @@ import diseaseRoutes from "./routes/diseaseRoutes.js";
 
 
 dotenv.config();
-
 const app = express();
 app.use(cors());
 app.use(express.json());
