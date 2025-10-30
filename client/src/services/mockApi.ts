@@ -11,12 +11,11 @@ export const mockCropPrices: CropPrice[] = [
 
 export const mockAlerts: Alert[] = [
   { id: '1', type: 'weather', severity: 'warning', title: 'Heavy Rain Alert', message: 'Heavy rainfall expected in the next 24 hours. Consider protective measures for crops.', timestamp: '2025-01-18T14:30:00Z', read: false },
-  { id: '2', type: 'pest', severity: 'critical', title: 'Aphid Infestation Risk', message: 'High aphid activity reported in nearby farms. Monitor your crops closely.', timestamp: '2025-01-18T10:15:00Z', read: false },
+  { id: '2', type: 'pest', severity: 'critical', title: 'Wheat brown rust', message: 'High aphid activity reported in nearby farms. Monitor your crops closely.', timestamp: '2025-01-18T10:15:00Z', read: false },
   { id: '3', type: 'irrigation', severity: 'info', title: 'Optimal Irrigation Time', message: 'Based on current weather conditions, evening irrigation is recommended.', timestamp: '2025-01-18T08:00:00Z', read: true },
   { id: '4', type: 'disease', severity: 'warning', title: 'Fungal Disease Alert', message: 'High humidity levels may promote fungal diseases. Apply preventive fungicides.', timestamp: '2025-01-17T16:45:00Z', read: true }
 ];
 
-// ✅ Mock yield predictions for multiple crops
 export const mockYieldPredictions: YieldPrediction[] = [
   {
     cropName: 'Wheat',

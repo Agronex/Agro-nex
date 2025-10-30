@@ -2,8 +2,7 @@ import axios from "axios";
 
 const BACKEND_URL = "https://agronex.onrender.com";
 const CACHE_KEY = "weatherData";
-const CACHE_TTL = 10 * 60 * 1000; // 10 minutes in milliseconds
-
+const CACHE_TTL = 10 * 60 * 1000; 
 export async function getWeatherData(): Promise<any> {
   // Check cache first
   const cached = localStorage.getItem(CACHE_KEY);
