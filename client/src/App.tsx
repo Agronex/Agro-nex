@@ -1,3 +1,4 @@
+import React from "react";
 import { useState, useCallback } from "react";
 import Header from "./components/Header";
 import Navigation from "./components/Navigation";
@@ -10,35 +11,30 @@ import FarmLogbook from "./components/FarmLogbook";
 import AIAssistantPopup from "./components/AIAssistant";
 import CommunityConnect from "./components/CommunityConnect";
 import { mockAlerts } from "./services/mockApi";
-import { useAuth } from "./contexts/AuthContext"; // Auth context
-import Login from "./components/Login"; // Login page component
+import { useAuth } from "./contexts/AuthContext"; 
+import Login from "./components/Login"; 
 import { signOut } from "firebase/auth";
 import { auth } from "./firebase";
 import SettingsPanel from "./components/Settings";
-// Reusable Settings Panel
 
 
 function App() {
-  const { user } = useAuth(); // Get current user
+  const { user } = useAuth(); 
 
-  // If not logged in, show login page
   if (!user) return <Login />;
 
   const [activeView, setActiveView] = useState("dashboard");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  // Toggle Sidebar
   const handleMenuToggle = useCallback(() => {
     setIsMenuOpen((prev) => !prev);
   }, []);
 
-  // Change Main View
   const handleViewChange = useCallback((view: string) => {
     setActiveView(view);
     setIsMenuOpen(false);
   }, []);
 
-  // Render Active View
   const renderActiveView = useCallback(() => {
     switch (activeView) {
       case "dashboard":
@@ -64,7 +60,6 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Header with Logout */}
       <Header
         alerts={mockAlerts}
         onMenuToggle={handleMenuToggle}
