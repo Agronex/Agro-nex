@@ -1,7 +1,7 @@
 # 🌾 AgroNex – Smart Farming Dashboard
 
-AgroNex is a **smart farming web application** designed to empower farmers with **real-time insights** into crop health, weather, irrigation, market trends, and yield prediction.  
-By combining **data analytics, machine learning, and AI assistance**, AgroNex helps farmers make **data-driven decisions** for sustainable and efficient agriculture.
+AgroNex is a **smart farming web Dashboard** designed to empower farmers with **real-time insights** into crop health, weather, irrigation, market trends, and yield prediction.  
+By combining **machine learning, and AI assistance**, AgroNex helps farmers make **data-driven decisions** for sustainable and efficient agriculture.
 
 
 ---
