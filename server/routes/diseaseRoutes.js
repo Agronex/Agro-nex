@@ -1,6 +1,8 @@
 import express from "express";
 import multer from "multer";
-import fetch from "node-fetch"; // or global fetch in Node 18+
+import fetch from "node-fetch";
+import dotenv from "dotenv";
+dotenv.config();
 
 const router = express.Router();
 const upload = multer();
@@ -15,7 +17,7 @@ router.post("/", upload.single("image"), async (req, res) => {
     }
 
     const response = await fetch(
-      "https://api-inference.huggingface.co/models/wambugu71/crop_leaf_diseases_vit",
+      "https://router.huggingface.co/hf-inference/models/wambugu71/crop_leaf_diseases_vit",
       {
         method: "POST",
         headers: {
