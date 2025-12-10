@@ -18,7 +18,7 @@ export default function AutoCapture() {
           videoRef.current?.play();
 
           // Capture every 1 second
-          setInterval(captureImage, 1000);
+          setInterval(captureImage, 2000);
         };
       }
     }
