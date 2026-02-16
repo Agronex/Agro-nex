@@ -42,7 +42,7 @@ const AIAssistantPopup: React.FC<{ serverUrl?: string }> = () => {
 
   const generateResponse = async (userMessage: string): Promise<string> => {
     try {
-      const res = await fetch("https://agronex.onrender.com/chat", {
+      const res = await fetch("http://localhost:5000/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: userMessage }),

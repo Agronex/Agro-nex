@@ -1,4 +1,3 @@
-import React from "react";
 import { useState, useCallback } from "react";
 import Header from "./components/Header";
 import Navigation from "./components/Navigation";
@@ -13,8 +12,6 @@ import CommunityConnect from "./components/CommunityConnect";
 import { mockAlerts } from "./services/mockApi";
 import { useAuth } from "./contexts/AuthContext"; 
 import Login from "./components/Login"; 
-import { signOut } from "firebase/auth";
-import { auth } from "./firebase";
 import SettingsPanel from "./components/Settings";
 
 
@@ -64,7 +61,6 @@ function App() {
         alerts={mockAlerts}
         onMenuToggle={handleMenuToggle}
         isMenuOpen={isMenuOpen}
-        showLogout={true} // optional prop to show logout button
       />
 
       <div className="flex flex-1">
