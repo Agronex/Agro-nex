@@ -5,7 +5,6 @@ import Login from "./components/Login.jsx"; // Your login component
 import { AuthProvider, useAuth } from "./contexts/AuthContext"; // Auth context we created
 import "./index.css";
 import Welcome from "./components/Welcome";
-import AutoCapture from "./components/AutoCapture";
 
 // Root component to handle auth-based rendering
 const RootApp = () => {
@@ -26,7 +25,6 @@ const RootApp = () => {
 
 createRoot(document.getElementById("root")!).render(
   <>
-  <AutoCapture />
   <StrictMode>
     <AuthProvider>
       <RootApp />
