@@ -4,10 +4,8 @@ import { WeatherData, Alert } from '../types';
 import { mockAlerts } from '../services/mockApi';
 import LoadingSpinner from './LoadingSpinner';
 import { getWeatherData } from '../services/weatherService';
-import { getIrrigationAdvice } from "../utils/irrigationUtils";
-import { getRainDetails } from "../utils/irrigationUtils";
+import { getIrrigationAdvice, getRainDetails } from "../utils/irrigationUtils";
 
-getRainDetails
 const Dashboard: React.FC = () => {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [alerts] = useState<Alert[]>(mockAlerts);

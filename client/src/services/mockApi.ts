@@ -121,6 +121,22 @@ export const mockCommunityPosts: CommunityPost[] = [
   { id: '3', author: 'Amit Singh', title: 'Record harvest this season!', content: 'Thanks to proper soil management and timely irrigation...', category: 'success', timestamp: '2025-01-17T18:20:00Z', likes: 45, replies: 12 }
 ];
 
+// Hoisted outside the function so the array and Set are created only once,
+// avoiding repeated allocation and enabling O(1) priority lookups during sort.
+const PRIORITY_COMMODITIES = [
+  "Wheat",
+  "Rice",
+  "Onion",
+  "Tomato",
+  "Potato",
+  "Corn",
+  "Mustard",
+  "Sugarcane",
+  "Paddy",
+  "Maize"
+];
+const PRIORITY_SET = new Set(PRIORITY_COMMODITIES);
+
 export const getCropPrices = async (): Promise<CropPrice[]> => {
   try {
     const url =
@@ -130,19 +146,6 @@ export const getCropPrices = async (): Promise<CropPrice[]> => {
     if (!response.ok) throw new Error("Failed to fetch data from API");
 
     const result = await response.json();
-
-    const PRIORITY_COMMODITIES = [
-      "Wheat",
-      "Rice",
-      "Onion",
-      "Tomato",
-      "Potato",
-      "Corn",
-      "Mustard",
-      "Sugarcane",
-      "Paddy",
-      "Maize"
-    ];
 
     let formatted: CropPrice[] = result.records.map((item: any, index: number) => {
       const currentPrice = parseFloat(item.modal_price) || 0;
@@ -164,10 +167,10 @@ export const getCropPrices = async (): Promise<CropPrice[]> => {
       };
     });
 
-    // ✅ Sort to prioritize farmer-focused commodities
+    // ✅ Sort to prioritize farmer-focused commodities (O(1) Set lookup per item)
     formatted = formatted.sort((a, b) => {
-      const aPriority = PRIORITY_COMMODITIES.includes(a.name) ? 0 : 1;
-      const bPriority = PRIORITY_COMMODITIES.includes(b.name) ? 0 : 1;
+      const aPriority = PRIORITY_SET.has(a.name) ? 0 : 1;
+      const bPriority = PRIORITY_SET.has(b.name) ? 0 : 1;
       return aPriority - bPriority;
     });
 

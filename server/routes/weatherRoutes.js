@@ -10,6 +10,16 @@ const tmrCache = {};  // Tomorrow.io cache: longer duration
 const OPEN_CACHE_DURATION = 1000 * 60 * 0.1; // 6 seconds for testing; adjust as needed
 const TMR_CACHE_DURATION = 1000 * 60 * 1;    // 1 minute
 
+// Remove cache entries that have exceeded their TTL to prevent unbounded memory growth
+function evictStaleCache(cache, duration) {
+  const now = Date.now();
+  for (const key of Object.keys(cache)) {
+    if (now - cache[key].time >= duration) {
+      delete cache[key];
+    }
+  }
+}
+
 router.post("/", async (req, res) => {
   const { lat, lon } = req.body;
   if (!lat || !lon) return res.status(400).json({ error: "Missing lat/lon" });
@@ -17,6 +27,9 @@ router.post("/", async (req, res) => {
   const cacheKey = `${lat.toFixed(2)}_${lon.toFixed(2)}`;
 
   try {
+    evictStaleCache(openCache, OPEN_CACHE_DURATION);
+    evictStaleCache(tmrCache, TMR_CACHE_DURATION);
+
     // ✅ Open-Meteo cache
     let openRaw;
     if (openCache[cacheKey] && Date.now() - openCache[cacheKey].time < OPEN_CACHE_DURATION) {

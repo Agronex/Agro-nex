@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Sun, Cloud, CloudRain, Droplets, Wind, Thermometer } from 'lucide-react';
 import { WeatherData } from '../types';
 import { getWeatherData } from '../services/weatherService';
+import { getIrrigationAdvice } from '../utils/irrigationUtils';
 import LoadingSpinner from './LoadingSpinner';
 
 const WeatherWidget: React.FC = () => {
@@ -29,15 +30,6 @@ const WeatherWidget: React.FC = () => {
       case 'rainy': return <CloudRain className="w-8 h-8 text-blue-500" />;
       default: return <Cloud className="w-8 h-8 text-gray-500" />;
     }
-  };
-
-  const getIrrigationAdvice = () => {
-    if (!weather) return '';
-    
-    if (weather.rainfall > 5) return 'Skip irrigation - sufficient natural rainfall';
-    if (weather.humidity > 80) return 'Reduce irrigation frequency';
-    if (weather.temperature > 30) return 'Increase irrigation, water early morning';
-    return 'Normal irrigation schedule recommended';
   };
 
   if (loading) {
@@ -98,7 +90,7 @@ const WeatherWidget: React.FC = () => {
           <Droplets className="w-4 h-4 text-green-600" />
           <h4 className="font-semibold text-gray-800">Irrigation Advice</h4>
         </div>
-        <p className="text-sm text-gray-700">{getIrrigationAdvice()}</p>
+        <p className="text-sm text-gray-700">{getIrrigationAdvice(weather)}</p>
       </div>
 
       {/* 5-Day Forecast */}

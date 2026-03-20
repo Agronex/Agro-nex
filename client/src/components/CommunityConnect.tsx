@@ -16,6 +16,7 @@ import {
   onSnapshot,
   query,
   orderBy,
+  limit,
   doc,
   updateDoc,
   increment,
@@ -57,9 +58,9 @@ const CommunityConnect: React.FC = () => {
   const [replyText, setReplyText] = useState("");
   const [replies, setReplies] = useState<Record<string, ReplyType[]>>({});
 
-  // Fetch posts
+  // Fetch posts (limited to the 20 most recent)
   useEffect(() => {
-    const q = query(collection(db, "communityPosts"), orderBy("timestamp", "desc"));
+    const q = query(collection(db, "communityPosts"), orderBy("timestamp", "desc"), limit(20));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const fetchedPosts: CommunityPost[] = snapshot.docs.map((doc) => ({
         id: doc.id,
@@ -79,25 +80,24 @@ const CommunityConnect: React.FC = () => {
     return () => unsubscribeAuth();
   }, []);
 
-  // Listen to replies for each post
+  // Listen to replies only for the currently expanded post (lazy-load)
   useEffect(() => {
-    const unsubscribes: (() => void)[] = [];
-    posts.forEach((post) => {
-      const repliesQuery = query(
-        collection(db, "communityPosts", post.id, "replies"),
-        orderBy("timestamp", "asc")
-      );
-      const unsub = onSnapshot(repliesQuery, (snapshot) => {
-        const postReplies: ReplyType[] = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...(doc.data() as Omit<ReplyType, "id">),
-        }));
-        setReplies((prev) => ({ ...prev, [post.id]: postReplies }));
-      });
-      unsubscribes.push(unsub);
+    if (!activeReplyPost) return;
+
+    const repliesQuery = query(
+      collection(db, "communityPosts", activeReplyPost, "replies"),
+      orderBy("timestamp", "asc")
+    );
+    const unsub = onSnapshot(repliesQuery, (snapshot) => {
+      const postReplies: ReplyType[] = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...(doc.data() as Omit<ReplyType, "id">),
+      }));
+      setReplies((prev) => ({ ...prev, [activeReplyPost]: postReplies }));
     });
-    return () => unsubscribes.forEach((unsub) => unsub());
-  }, [posts]);
+
+    return () => unsub();
+  }, [activeReplyPost]);
 
   const handleSubmitPost = async (e: React.FormEvent) => {
     e.preventDefault();

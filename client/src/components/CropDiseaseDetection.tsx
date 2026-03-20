@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { Camera, Upload, AlertTriangle, X } from "lucide-react";
 import LoadingSpinner from "./LoadingSpinner";
 
@@ -48,6 +48,18 @@ const CropDiseaseDetection: React.FC = () => {
   const [dragActive, setDragActive] = useState(false);
   const [detecting, setDetecting] = useState(false);
   const [predictions, setPredictions] = useState<Prediction[]>([]);
+
+  // Create a stable object URL and revoke the previous one whenever selectedFile changes
+  const previewUrl = useMemo(() => {
+    if (!selectedFile) return null;
+    return URL.createObjectURL(selectedFile);
+  }, [selectedFile]);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
 
   const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -173,7 +185,7 @@ const CropDiseaseDetection: React.FC = () => {
           <div className="space-y-4 mt-4">
             <div className="relative">
               <img
-                src={URL.createObjectURL(selectedFile)}
+                src={previewUrl!}
                 alt="Selected crop"
                 className="w-full object-contain max-h-[500px] rounded-lg"
               />
@@ -214,7 +226,7 @@ const CropDiseaseDetection: React.FC = () => {
       <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
         <div className="w-full md:w-1/2">
           <img
-            src={URL.createObjectURL(selectedFile as File)}
+            src={previewUrl!}
             alt="Uploaded crop"
             className="w-full rounded-lg shadow-md object-cover"
           />
