@@ -11,7 +11,16 @@ export default {
           500: "#28a745",
           700: "#1f7f37"
         }
-      }
+      },
+      animation: {
+        fadeIn: 'fadeIn 0.3s ease-in-out',
+      },
+      keyframes: {
+        fadeIn: {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+      },
     },
   },
   plugins: [],

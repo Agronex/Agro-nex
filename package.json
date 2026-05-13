@@ -1,4 +1,12 @@
 {
+  "name": "agronex",
+  "version": "3.2.0",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "cd server && node index.js",
+    "dev:client": "cd client && npm run dev",
+    "install:ml": "cd server/ml && pip install -r requirements.txt"
+  },
   "dependencies": {
     "@tensorflow/tfjs": "^4.22.0",
     "@types/react-router-dom": "^5.3.3",
