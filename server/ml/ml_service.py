@@ -71,8 +71,13 @@ class GradCAM:
 
 
 # ── Load model ─────────────────────────────────────────────────────────────────
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+import gc
+DEVICE = "cpu"  # Force CPU since Render free tier has no GPU
 print(f"[ML Service] Using device: {DEVICE}")
+
+# Memory optimization for Render's 512MB limit
+torch.set_num_threads(1)
+torch.set_grad_enabled(False)
 
 if not os.path.exists(MODEL_PATH):
     raise FileNotFoundError(

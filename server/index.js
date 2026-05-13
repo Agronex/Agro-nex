@@ -38,7 +38,10 @@ app.listen(5000, () => {
   const mlScriptPath = path.join(__dirname, "ml", "ml_service.py");
   console.log(`🚀 Starting ML Service from: ${mlScriptPath}`);
   
-  const mlProcess = spawn("python", [mlScriptPath], {
+  // Determine correct python command based on OS (Windows uses 'python', Linux/Mac uses 'python3')
+  const pythonCmd = process.platform === "win32" ? "python" : "python3";
+  
+  const mlProcess = spawn(pythonCmd, [mlScriptPath], {
     stdio: "inherit" // Pipe stdout/stderr to Node's console
   });
 

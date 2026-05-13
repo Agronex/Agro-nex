@@ -1,7 +1,5 @@
 flask
 flask-cors
-torch
-torchvision
 timm
 albumentations
 opencv-python-headless
