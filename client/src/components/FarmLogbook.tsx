@@ -3,11 +3,17 @@ import { BookOpen, Plus, Edit2, Trash2, Calendar } from 'lucide-react';
 import { CropRecord } from '../types';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { formatDate, getDaysDifference } from '../utils/dateUtils';
+import { addActivity } from '../utils/activityStore';
+import Button from './Button';
+import Input from './Input';
+import Card from './Card';
 
 const FarmLogbook: React.FC = () => {
   const [records, setRecords] = useLocalStorage<CropRecord[]>('farm-records', []);
   const [showForm, setShowForm] = useState(false);
   const [editingRecord, setEditingRecord] = useState<CropRecord | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     cropName: '',
     variety: '',
@@ -17,6 +23,11 @@ const FarmLogbook: React.FC = () => {
     location: '',
     notes: ''
   });
+
+  const showSuccess = (msg: string) => {
+    setSuccessMessage(msg);
+    setTimeout(() => setSuccessMessage(null), 3000);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,11 +45,15 @@ const FarmLogbook: React.FC = () => {
     };
 
     if (editingRecord) {
-      setRecords(records.map(record => 
+      setRecords(records.map(record =>
         record.id === editingRecord.id ? newRecord : record
       ));
+      showSuccess('Record updated successfully');
+      addActivity({ type: 'logbook_edit', title: 'Crop record updated', detail: `${newRecord.cropName} (${newRecord.area} ha)`, color: 'blue' });
     } else {
       setRecords([newRecord, ...records]);
+      showSuccess('Record added successfully');
+      addActivity({ type: 'logbook_add', title: 'New crop record added', detail: `${newRecord.cropName} — ${newRecord.area} ha at ${newRecord.location || 'unknown location'}`, color: 'green' });
     }
 
     resetForm();
@@ -73,9 +88,15 @@ const FarmLogbook: React.FC = () => {
   };
 
   const handleDelete = (id: string) => {
-    if (window.confirm('Are you sure you want to delete this record?')) {
-      setRecords(records.filter(record => record.id !== id));
-    }
+    setDeleteConfirm(id);
+  };
+
+  const confirmDelete = (id: string) => {
+    const rec = records.find(r => r.id === id);
+    setRecords(records.filter(record => record.id !== id));
+    setDeleteConfirm(null);
+    showSuccess('Record deleted successfully');
+    if (rec) addActivity({ type: 'logbook_delete', title: 'Crop record removed', detail: rec.cropName, color: 'red' });
   };
 
   const getStatusColor = (status: string) => {
@@ -92,19 +113,32 @@ const FarmLogbook: React.FC = () => {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+    <Card>
+      {successMessage && (
+        <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center justify-between">
+          <p className="text-green-800 font-medium">{successMessage}</p>
+          <button
+            onClick={() => setSuccessMessage(null)}
+            className="text-green-600 hover:text-green-700"
+          >
+            ✕
+          </button>
+        </div>
+      )}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center space-x-3">
           <BookOpen className="w-6 h-6 text-green-600" />
           <h3 className="text-xl font-bold text-gray-800">Farm Logbook</h3>
         </div>
-        <button
+        <Button
           onClick={() => setShowForm(true)}
-          className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+          variant="primary"
+          size="md"
+          className="flex items-center space-x-2"
         >
           <Plus className="w-4 h-4" />
           <span>Add Record</span>
-        </button>
+        </Button>
       </div>
 
       {/* Add/Edit Form */}
@@ -200,19 +234,21 @@ const FarmLogbook: React.FC = () => {
               />
             </div>
             <div className="flex space-x-3">
-              <button
+              <Button
                 type="submit"
-                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                variant="primary"
+                size="md"
               >
                 {editingRecord ? 'Update Record' : 'Add Record'}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 onClick={resetForm}
-                className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                variant="secondary"
+                size="md"
               >
                 Cancel
-              </button>
+              </Button>
             </div>
           </form>
         </div>
@@ -262,20 +298,41 @@ const FarmLogbook: React.FC = () => {
                     </div>
                   )}
                 </div>
-                <div className="flex space-x-2 ml-4">
+                <div className="flex gap-3 ml-4">
                   <button
                     onClick={() => handleEdit(record)}
-                    className="p-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                    className="px-3 py-2 min-h-12 min-w-12 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                   >
                     <Edit2 className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => handleDelete(record.id)}
-                    className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    className="px-3 py-2 min-h-12 min-w-12 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
+                {deleteConfirm === record.id && (
+                  <div className="absolute top-0 right-0 bg-white border border-red-200 rounded-lg shadow-lg p-3 z-10 mt-8">
+                    <p className="text-sm text-gray-800 mb-2 font-medium">Delete this record?</p>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => confirmDelete(record.id)}
+                        variant="danger"
+                        size="sm"
+                      >
+                        Delete
+                      </Button>
+                      <Button
+                        onClick={() => setDeleteConfirm(null)}
+                        variant="ghost"
+                        size="sm"
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ))}
@@ -283,13 +340,13 @@ const FarmLogbook: React.FC = () => {
       ) : (
         <div className="text-center py-12">
           <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h4 className="text-lg font-semibold text-gray-600 mb-2">No records yet</h4>
+          <h4 className="text-lg font-semibold text-gray-600 mb-2">No records yet. Start logging!</h4>
           <p className="text-gray-500">
             Start tracking your crops by adding your first record
           </p>
         </div>
       )}
-    </div>
+    </Card>
   );
 };
 

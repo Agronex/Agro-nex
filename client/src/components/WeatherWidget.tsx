@@ -3,23 +3,31 @@ import { Sun, Cloud, CloudRain, Droplets, Wind, Thermometer } from 'lucide-react
 import { WeatherData } from '../types';
 import { getWeatherData } from '../services/weatherService';
 import LoadingSpinner from './LoadingSpinner';
+import { getTimeAgo } from '../utils/timeUtils';
 
 const WeatherWidget: React.FC = () => {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+
+  const fetchWeather = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await getWeatherData();
+      setWeather(data);
+      setLastUpdated(new Date());
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to load weather';
+      setError(errorMsg);
+      setWeather(null);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchWeather = async () => {
-      try {
-        const data = await getWeatherData();
-        setWeather(data);
-      } catch (error) {
-        console.error('Failed to fetch weather data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchWeather();
   }, []);
 
@@ -50,10 +58,34 @@ const WeatherWidget: React.FC = () => {
     );
   }
 
+  if (error) {
+    return (
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="flex flex-col items-center justify-center h-48 animate-fadeIn">
+          <p className="text-center text-red-600 font-medium mb-4">Failed to load weather</p>
+          <button
+            onClick={fetchWeather}
+            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (!weather) {
     return (
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <p className="text-center text-gray-500">Weather data unavailable</p>
+        <div className="flex flex-col items-center justify-center h-48 animate-fadeIn">
+          <p className="text-center text-gray-500 font-medium mb-4">Weather data unavailable</p>
+          <button
+            onClick={fetchWeather}
+            className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
       </div>
     );
   }
@@ -123,6 +155,13 @@ const WeatherWidget: React.FC = () => {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Last Updated */}
+      <div className="mt-6 text-center">
+        <p className="text-xs text-gray-500">
+          Last updated: {getTimeAgo(lastUpdated)}
+        </p>
       </div>
     </div>
   );
