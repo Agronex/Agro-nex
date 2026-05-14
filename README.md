@@ -13,8 +13,8 @@ By combining **machine learning, and AI assistance**, AgroNex helps farmers make
 - Displays temperature, humidity, rainfall, and wind speed with irrigation recommendations.
 
 ### 🌿 Crop Disease Detection (ML)
-- Custom **Vision Transformer (ViT)** model trained on images of **Corn, Wheat, Potato, and Rice**.  
-- Model deployed on **Hugging Face** and accessed through an **Inference API** for real-time disease detection.
+- Custom **EfficientNetV2_s** model trained on images of **Cotton, Sugarcane and Rice**.  
+- Model deployed on **Render** and accessed through an **Inference API** for real-time disease detection.
 
 ### 📊 Yield Prediction
 - Simple regression-based **ML model** trained on the *Crop Yield Prediction Dataset* from **Kaggle**.  
