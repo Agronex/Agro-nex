@@ -2,7 +2,7 @@
 AgroNex — Leaf Disease Detection REST API
 Run: python ml_service.py
 Requires: pip install -r requirements.txt
-Serves: POST /predict  (multipart/form-data with 'image' field)
+Serves: POST /disease  (multipart/form-data with 'image' field)
         GET  /health
         GET  /classes
 """
@@ -36,7 +36,7 @@ class LeafDiseaseModel(nn.Module):
     def __init__(self, num_classes, backbone="tf_efficientnetv2_s", dropout=0.3):
         super().__init__()
         self.backbone = timm.create_model(backbone, pretrained=False, num_classes=0)
-        feat = self.backbone.num_features
+        feat = int(getattr(self.backbone, "num_features", 0))
         self.head = nn.Sequential(
             nn.Linear(feat, 512), nn.BatchNorm1d(512), nn.SiLU(), nn.Dropout(dropout),
             nn.Linear(512, 256),  nn.BatchNorm1d(256), nn.SiLU(), nn.Dropout(dropout / 2),
@@ -62,6 +62,8 @@ class GradCAM:
         cls = logits.argmax(1).item()
         self.model.zero_grad()
         logits[0, cls].backward()
+        if self.grads is None or self.acts is None:
+            raise RuntimeError("GradCAM hooks did not capture gradients or activations")
         w = self.grads.mean(dim=[2, 3], keepdim=True)
         cam = F.relu((w * self.acts).sum(1, keepdim=True))
         cam = F.interpolate(cam, tensor.shape[-2:], mode="bilinear", align_corners=False)
@@ -99,7 +101,7 @@ print(f"[ML Service] Model loaded: {len(classes)} classes")
 
 # GradCAM target layer
 try:
-    target_layer = model.backbone.blocks[-1][-1]
+    target_layer = list(model.backbone.modules())[-2]
 except Exception:
     target_layer = list(model.backbone.modules())[-3]
 gcam = GradCAM(model, target_layer)
@@ -107,14 +109,14 @@ gcam = GradCAM(model, target_layer)
 # ── Transforms ─────────────────────────────────────────────────────────────────
 val_tf = A.Compose([
     A.Resize(img_size, img_size),
-    A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
     ToTensorV2(),
 ])
 tta_tf = A.Compose([
     A.Resize(img_size, img_size),
     A.HorizontalFlip(p=0.5),
     A.RandomBrightnessContrast(brightness_limit=0.1, contrast_limit=0.1, p=0.5),
-    A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
     ToTensorV2(),
 ])
 
@@ -220,8 +222,8 @@ def get_classes():
     return jsonify({"classes": classes})
 
 
-@app.route("/predict", methods=["POST"])
-def predict():
+@app.route("/disease", methods=["POST"])
+def disease():
     if "image" not in request.files:
         return jsonify({"error": "No image file provided"}), 400
 
