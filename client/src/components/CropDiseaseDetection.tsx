@@ -105,7 +105,7 @@ const CropDiseaseDetection: React.FC = () => {
       formData.append("image", selectedFile);
 
       const diseaseApiUrl = import.meta.env.VITE_DISEASE_API_URL || "http://localhost:5000";
-      const response = await fetchWithRetry(`${diseaseApiUrl}/disease`, { method: "POST", body: formData }, 3);
+      const response = await fetchWithRetry(`${diseaseApiUrl}/predict`, { method: "POST", body: formData }, 3);
 
       if (!response.ok) {
         const err = await response.json().catch(() => ({}));

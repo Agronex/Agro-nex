@@ -1,34 +1,38 @@
-import { StrictMode, useState } from "react";
+import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import App from "./App.jsx";
-import Login from "./components/Login.jsx"; // Your login component
-import { AuthProvider, useAuth } from "./contexts/AuthContext"; // Auth context we created
-import "./index.css";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import App from "./App";
 import Welcome from "./components/Welcome";
+import "./index.css";
 
-// Root component to handle auth-based rendering
-const RootApp = () => {
+// Proper loading screen — no raw "Loading..." text
+function LoadingScreen() {
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 gap-4">
+      <span className="text-5xl animate-pulse">🌿</span>
+      <p className="text-gray-500 text-sm font-medium tracking-wide">Loading AgroNex...</p>
+    </div>
+  );
+}
+
+function RootApp() {
   const { user, loading } = useAuth();
-  const [showWelcome, setShowWelcome] = useState(true); // Welcome page state
 
-  if (loading) return <div>Loading...</div>;
+  if (loading) return <LoadingScreen />;
 
-  // If user is logged in, skip welcome page
+  // Logged-in users skip the welcome page
   if (user) return <App />;
 
-  return showWelcome ? (
-    <Welcome />
-  ) : (
-    <Login /> // Or Signup handled inside Welcome
-  );
-};
+  return <Welcome />;
+}
 
-createRoot(document.getElementById("root")!).render(
-  <>
+const container = document.getElementById("root");
+if (!container) throw new Error("Root element #root not found");
+
+createRoot(container).render(
   <StrictMode>
     <AuthProvider>
       <RootApp />
     </AuthProvider>
   </StrictMode>
-  </>
 );

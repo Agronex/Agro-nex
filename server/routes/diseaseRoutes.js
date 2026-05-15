@@ -10,7 +10,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 const ML_SERVICE_URL = process.env.ML_SERVICE_URL || "http://localhost:8000";
 
-router.post("/", upload.single("image"), async (req, res) => {
+router.post("/disease", upload.single("image"), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: "No image file provided" });

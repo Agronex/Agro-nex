@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, Minus, RefreshCw, AlertTriangle, ShoppingCart } from 'lucide-react';
 import { CropPrice } from '../types';
-import { getCropPrices } from '../services/mockApi';
+import { getCropPrices } from '../services/cropDataService';
 import LoadingSpinner from './LoadingSpinner';
 import { getTimeAgo } from '../utils/timeUtils';
 

@@ -1,97 +1,101 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, Suspense, lazy } from "react";
 import Header from "./components/Header";
 import Navigation from "./components/Navigation";
-import Dashboard from "./components/Dashboard";
-import WeatherWidget from "./components/WeatherWidget";
-import CropDiseaseDetection from "./components/CropDiseaseDetection";
-import MarketPrices from "./components/MarketPrices";
-import YieldPrediction from "./components/YieldPrediction";
-import FarmLogbook from "./components/FarmLogbook";
-import AIAssistantPopup from "./components/AIAssistant";
-import CommunityConnect from "./components/CommunityConnect";
+import ErrorBoundary from "./components/ErrorBoundary";
+import LoadingSpinner from "./components/LoadingSpinner";
 import { useAuth } from "./contexts/AuthContext";
 import Login from "./components/Login";
-import SettingsPanel from "./components/Settings";
-import ErrorBoundary from "./components/ErrorBoundary";
 import { getAlerts } from "./services/alertService";
 import { Alert } from "./types";
 
-function App() {
+// ── Lazy-load all heavy views ─────────────────────────────────────────────────
+// Each chunk is only downloaded when the user navigates to that view.
+const Dashboard           = lazy(() => import("./components/Dashboard"));
+const WeatherWidget       = lazy(() => import("./components/WeatherWidget"));
+const CropDiseaseDetection = lazy(() => import("./components/CropDiseaseDetection"));
+const MarketPrices        = lazy(() => import("./components/MarketPrices"));
+const YieldPrediction     = lazy(() => import("./components/YieldPrediction"));
+const FarmLogbook         = lazy(() => import("./components/FarmLogbook"));
+const CommunityConnect    = lazy(() => import("./components/CommunityConnect"));
+const SettingsPanel       = lazy(() => import("./components/Settings"));
+const AIAssistantPopup    = lazy(() => import("./components/AIAssistant"));
+
+// ── Fallback shown while a lazy chunk loads ───────────────────────────────────
+const ViewLoader = () => (
+  <div className="flex items-center justify-center h-64">
+    <LoadingSpinner size="lg" />
+  </div>
+);
+
+function AppShell() {
+  // ── All hooks are declared unconditionally ────────────────────────────────
   const { user } = useAuth();
-
-  if (!user) return <Login />;
-
   const [activeView, setActiveView] = useState("dashboard");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [alerts, setAlerts] = useState<Alert[]>([]);
 
-  // Fetch real-time alerts on mount and every 5 minutes
+  // Fetch alerts on mount, refresh every 5 minutes
   useEffect(() => {
+    if (!user) return;
+
+    let cancelled = false;
+
     const fetchAlerts = async () => {
       try {
         const data = await getAlerts();
-        setAlerts(data);
+        if (!cancelled) setAlerts(data);
       } catch {
-        // silently fail — alertService already handles fallback
+        // alertService already returns a fallback — no action needed here
       }
     };
 
     fetchAlerts();
     const interval = setInterval(fetchAlerts, 5 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, []);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [user]);
 
-  const handleMenuToggle = useCallback(() => {
-    setIsMenuOpen((prev) => !prev);
-  }, []);
+  const handleMenuToggle = useCallback(() => setIsMenuOpen((p) => !p), []);
 
   const handleViewChange = useCallback((view: string) => {
     setActiveView(view);
     setIsMenuOpen(false);
-    // Scroll to top on view change (important on mobile)
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
-  const renderActiveView = useCallback(() => {
+  // ── Render auth gate AFTER all hooks ────────────────────────────────────────
+  if (!user) return <Login />;
+
+  const renderView = () => {
     switch (activeView) {
-      case "dashboard":
-        return <Dashboard onNavigate={handleViewChange} alerts={alerts} />;
-      case "weather":
-        return <WeatherWidget />;
-      case "disease-detection":
-        return <CropDiseaseDetection />;
-      case "market-prices":
-        return <MarketPrices />;
-      case "yield-prediction":
-        return <YieldPrediction />;
-      case "farm-logbook":
-        return <FarmLogbook />;
-      case "community":
-        return <CommunityConnect />;
-      case "settings":
-        return <SettingsPanel />;
-      default:
-        return <Dashboard onNavigate={handleViewChange} alerts={alerts} />;
+      case "dashboard":        return <Dashboard onNavigate={handleViewChange} alerts={alerts} />;
+      case "weather":          return <WeatherWidget />;
+      case "disease-detection": return <CropDiseaseDetection />;
+      case "market-prices":    return <MarketPrices />;
+      case "yield-prediction": return <YieldPrediction />;
+      case "farm-logbook":     return <FarmLogbook />;
+      case "community":        return <CommunityConnect />;
+      case "settings":         return <SettingsPanel />;
+      default:                 return <Dashboard onNavigate={handleViewChange} alerts={alerts} />;
     }
-  }, [activeView, alerts, handleViewChange]);
+  };
 
   return (
-    <ErrorBoundary>
+    <>
+      {/* Skip-to-content link for accessibility */}
       <a
         href="#main-content"
-        className="absolute -top-full left-0 z-50 bg-blue-600 text-white px-4 py-2 focus:top-0 focus:left-0 transition-all"
+        className="absolute -top-full left-0 z-50 bg-blue-600 text-white px-4 py-2 focus:top-0 transition-all"
       >
         Skip to main content
       </a>
+
       <div className="min-h-screen bg-gray-50 flex flex-col">
-        <Header
-          alerts={alerts}
-          onMenuToggle={handleMenuToggle}
-          isMenuOpen={isMenuOpen}
-        />
+        <Header alerts={alerts} onMenuToggle={handleMenuToggle} isMenuOpen={isMenuOpen} />
 
         <div className="flex flex-1 relative">
-          {/* Sidebar Navigation */}
           <Navigation
             activeView={activeView}
             onViewChange={handleViewChange}
@@ -109,18 +113,30 @@ function App() {
           )}
 
           {/* Main Content */}
-          <main id="main-content" className="flex-1 p-3 sm:p-4 lg:p-8 min-w-0 transition-all">
+          <main id="main-content" className="flex-1 p-3 sm:p-4 lg:p-8 min-w-0">
             <div className="space-y-4 sm:space-y-6 max-w-7xl mx-auto">
-              {renderActiveView()}
+              <Suspense fallback={<ViewLoader />}>
+                {renderView()}
+              </Suspense>
             </div>
           </main>
         </div>
 
-        {/* Floating AI Assistant */}
-        {activeView !== "community" && <AIAssistantPopup />}
+        {/* Floating AI Assistant — lazy, only when not in community view */}
+        {activeView !== "community" && (
+          <Suspense fallback={null}>
+            <AIAssistantPopup />
+          </Suspense>
+        )}
       </div>
-    </ErrorBoundary>
+    </>
   );
 }
 
-export default App;
+export default function App() {
+  return (
+    <ErrorBoundary>
+      <AppShell />
+    </ErrorBoundary>
+  );
+}

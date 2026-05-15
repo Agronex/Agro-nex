@@ -9,8 +9,8 @@ const TOMORROW_KEY = process.env.TOMORROW_KEY;
 const openCache = {};
 const tmrCache = {};
 
-const OPEN_CACHE_DURATION = 1000 * 60 * 0.1; // 6 seconds
-const TMR_CACHE_DURATION = 1000 * 60 * 1; // 1 minute
+const OPEN_CACHE_DURATION = 1000 * 60 * 10; // 10 minutes
+const TMR_CACHE_DURATION  = 1000 * 60 * 10; // 10 minutes
 
 router.post("/", async (req, res) => {
   try {
