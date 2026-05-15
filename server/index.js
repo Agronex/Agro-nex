@@ -21,7 +21,7 @@ const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
   : [
       "http://localhost:5173",
-      "http://localhost:4173",
+      "https://agronex1.vercel.app",
     ];
 
 app.use(
