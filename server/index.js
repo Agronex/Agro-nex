@@ -1,71 +1,88 @@
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import dotenv from "dotenv";
-import { spawn } from "child_process";
-import path from "path";
-import { fileURLToPath } from "url";
 
 import chatRoutes from "./routes/chatRoutes.js";
 import weatherRoutes from "./routes/weatherRoutes.js";
-import diseaseRoutes from "./routes/diseaseRoutes.js";
 import alertRoutes from "./routes/alertRoutes.js";
+import diseaseRoutes from "./routes/diseaseRoutes.js";
 
 dotenv.config();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 const app = express();
 
-app.use(cors());
-app.use(express.json());
+// ── Security headers ─────────────────────────────────────────────────────────
+app.use(helmet());
 
-// Routes
-app.use("/chat", chatRoutes);
+// ── CORS — restrict to known origins in production ───────────────────────────
+const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
+  : [
+      "http://localhost:5173",
+      "http://localhost:4173",
+    ];
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, curl, Render health checks)
+      if (!origin) return callback(null, true);
+      if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+      callback(new Error(`CORS: origin ${origin} not allowed`));
+    },
+    methods: ["GET", "POST", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
+
+app.use(express.json({ limit: "1mb" }));
+
+// ── Global rate limiter — prevents DoS ──────────────────────────────────────
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests. Please try again later." },
+});
+app.use(globalLimiter);
+
+// ── Stricter limiter for expensive AI/ML routes ───────────────────────────────
+const aiLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 10,
+  message: { error: "Rate limit reached for AI endpoints. Please wait a moment." },
+});
+
+// ── Routes ───────────────────────────────────────────────────────────────────
+app.use("/chat", aiLimiter, chatRoutes);
 app.use("/weather", weatherRoutes);
-app.use("/disease", diseaseRoutes);
 app.use("/alerts", alertRoutes);
+app.use("/disease", aiLimiter, diseaseRoutes);
 
-// Health check for Render
+// ── Health check ─────────────────────────────────────────────────────────────
 app.get("/health", (req, res) => {
-  res.status(200).send("OK");
+  res.status(200).json({ status: "ok", ts: Date.now() });
 });
 
-// Start ML Service
-const mlScriptPath = path.join(__dirname, "ml", "ml_service.py");
-console.log(`🚀 Starting ML Service from: ${mlScriptPath}`);
-
-// Windows -> python
-// Linux(Render) -> python3
-const pythonCmd = process.platform === "win32" ? "python" : "python3";
-
-const mlProcess = spawn(pythonCmd, [mlScriptPath], {
-  stdio: "inherit",
+// ── 404 handler ───────────────────────────────────────────────────────────────
+app.use((req, res) => {
+  res.status(404).json({ error: "Route not found" });
 });
 
-mlProcess.on("error", (err) => {
-  console.error("❌ Failed to start Python ML Service:", err);
+// ── Global error handler — never expose stack traces in prod ─────────────────
+app.use((err, req, res, _next) => {
+  const isProd = process.env.NODE_ENV === "production";
+  console.error("[Server Error]", err.message);
+  res.status(err.status || 500).json({
+    error: isProd ? "Internal server error" : err.message,
+  });
 });
 
-mlProcess.on("close", (code) => {
-  console.log(`⚠️ ML Service exited with code ${code}`);
-});
-
-// Graceful shutdown
-const cleanup = () => {
-  if (mlProcess) {
-    console.log("🛑 Shutting down ML Service...");
-    mlProcess.kill("SIGINT");
-  }
-  process.exit();
-};
-
-process.on("SIGINT", cleanup);
-process.on("SIGTERM", cleanup);
-
-// IMPORTANT: Render needs process.env.PORT
+// ── Start ─────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
-
 app.listen(PORT, "0.0.0.0", () => {
-  console.log(`✅ Node Server running on port ${PORT}`);
+  console.log(`✅ AgroNex server running on port ${PORT}`);
 });

@@ -1,3 +1,4 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
 flask
 flask-cors
 timm
@@ -6,3 +7,6 @@ opencv-python-headless
 numpy
 Pillow
 matplotlib
+torch
+torchvision
+gunicorn

@@ -5,7 +5,8 @@
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "dev:server": "cd server && node index.js",
     "dev:client": "cd client && npm run dev",
-    "install:ml": "cd server/ml && pip install -r requirements.txt"
+    "start-ml": "cd ml_backend && python ml_service.py",
+    "install:ml": "cd ml_backend && pip install -r requirements.txt"
   },
   "dependencies": {
     "@tensorflow/tfjs": "^4.22.0",

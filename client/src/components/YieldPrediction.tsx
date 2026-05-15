@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { BarChart3, Target, TrendingUp } from 'lucide-react';
 import { YieldPrediction as YieldPredictionType } from '../types';
-import { getYieldPrediction } from '../services/mockApi';
+import { getYieldPrediction } from '../services/cropDataService';
 import LoadingSpinner from './LoadingSpinner';
 
 const YieldPrediction: React.FC = () => {

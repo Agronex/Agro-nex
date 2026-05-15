@@ -1,46 +1,54 @@
 services:
-  # -----------------------------------------------------
-  # 1. Backend: Node.js + Python ML (Free Web Service)
-  # -----------------------------------------------------
+  # ─────────────────────────────────────────────────────────────────────────────
+  # 1. Python ML Service
+  #    rootDir: ml_backend
+  #    Start:   gunicorn ml_service:app
+  # ─────────────────────────────────────────────────────────────────────────────
   - type: web
-    name: agronex-backend
-    env: docker
-    region: oregon # or frankfurt/singapore depending on your preference
-    plan: free
-    rootDir: server
-    dockerfilePath: ./Dockerfile
-    envVars:
-      # Optional: Put your Tomorrow.io key here if you want real weather alerts in production
-      # - key: TOMORROW_KEY
-      #   sync: false 
-      - key: NODE_ENV
-        value: production
-
-  # -----------------------------------------------------
-  # 2. Frontend: React Application (Free Static Site)
-  # -----------------------------------------------------
-  - type: web
-    name: agronex-frontend
-    env: static
+    name: agronex-ml
+    env: python
     region: oregon
     plan: free
-    rootDir: client
-    buildCommand: npm install && npm run build
-    publishPath: dist
-    # Rewrite all routing to index.html for React Router
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
+    rootDir: ml_backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn ml_service:app -w 1 --timeout 120 --bind 0.0.0.0:$PORT
+    healthCheckPath: /health
     envVars:
-      # Automatically points to the backend deployed above
-      - key: VITE_BACKEND_URL
+      - key: TTA_STEPS
+        value: "3"          # 3 for speed on free tier; increase for accuracy
+      - key: MAX_IMG_MB
+        value: "8"
+      # Set this after deploying agronex-frontend to your Vercel URL:
+      # - key: ALLOWED_ORIGIN
+      #   value: https://your-app.vercel.app
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # 2. Node.js Backend
+  #    rootDir: server
+  # ─────────────────────────────────────────────────────────────────────────────
+  - type: web
+    name: agronex-backend
+    env: node
+    region: oregon
+    plan: free
+    rootDir: server
+    buildCommand: npm ci --only=production
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: ML_SERVICE_URL
         fromService:
           type: web
-          name: agronex-backend
+          name: agronex-ml
           envVarKey: RENDER_EXTERNAL_URL
-      - key: VITE_DISEASE_API_URL
-        fromService:
-          type: web
-          name: agronex-backend
-          envVarKey: RENDER_EXTERNAL_URL
+      # Comma-separated list of allowed CORS origins.
+      # Set this after deploying agronex-frontend to your Vercel URL:
+      # - key: ALLOWED_ORIGINS
+      #   value: https://your-app.vercel.app
+      # Secrets — set these manually in the Render dashboard (do NOT commit):
+      # - key: HF_TOKEN
+      #   sync: false
+      # - key: TOMORROW_KEY
+      #   sync: false
