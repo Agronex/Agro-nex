@@ -1,93 +1,224 @@
 # 🌾 AgroNex – Smart Farming Dashboard
 
-AgroNex is a **smart farming web Dashboard** designed to empower farmers with **real-time insights** into crop health, weather, irrigation, market trends, and yield prediction.  
-By combining **machine learning, and AI assistance**, AgroNex helps farmers make **data-driven decisions** for sustainable and efficient agriculture.
+AgroNex is a smart farming web app for crop monitoring, weather insights, disease detection, market prices, yield prediction, and an AI farming assistant.
 
+## Architecture
 
----
+| Layer | Stack | Purpose |
+| --- | --- | --- |
+| Frontend | React, TypeScript, Vite, Tailwind CSS | Farmer-facing UI, chat, dashboard, weather, disease scan, logbook |
+| Node server | Express, Node.js | App API, security, CORS, rate limiting, chat orchestration, disease proxy |
+| ML backend | Python, Flask, Gunicorn, PyTorch | Crop disease inference API hosted on Hugging Face Spaces |
+| Data/auth | Firebase Auth, Firestore | User accounts, settings, chat threads, app data |
 
-## Overview
+## Core features
 
-### 🌦️ Real-Time Weather Insights
-- Integrated **Open-Meteo API** and **Tomorrow.io API** for accurate multi-source weather data.  
-- Displays temperature, humidity, rainfall, and wind speed with irrigation recommendations.
+- Real-time weather and irrigation guidance
+- Crop disease detection with image upload
+- AI farming assistant with streaming replies
+- Multi-turn chat memory and named chat threads
+- Yield prediction
+- Market price tracking
+- Community posts and farm logbook
+- Per-user settings, privacy controls, and export/delete tools
 
-### 🌿 Crop Disease Detection (ML)
-- Custom **EfficientNetV2_s** model trained on images of **Cotton, Sugarcane and Rice**.  
-- Model deployed on **Render** and accessed through an **Inference API** for real-time disease detection.
+## Backend overview
 
-### 📊 Yield Prediction
-- Simple regression-based **ML model** trained on the *Crop Yield Prediction Dataset* from **Kaggle**.  
-- Predicts expected yield based on weather and soil parameters.
+### Node server
 
-### 🧠 AI Farming Assistant
-- Built-in **AI Farming Assistant** powered by **DeepSeek**, integrated via **Hugging Face Inference API**.  
-- Provides intelligent answers, recommendations, and insights for crop care and farming decisions.
+The Node/Express server handles the main application backend:
 
-### 🧠 Smart Irrigation & Disease Alerts
-- AI-based irrigation advice depending on current weather and soil data.  
-- Instant notifications for potential diseases or pests using the ViT detection model.
+- `GET /health` - server health check
+- `POST /chat` - AI assistant response
+- `POST /chat/stream` - streaming AI assistant response
+- `GET/POST /weather` - weather data pipeline
+- `GET /alerts` - farm alert generation
+- `POST /disease` - proxy to the ML backend if you want to route disease scans through Node
 
-### 📈 Market Price Updates
-- Uses **Government Agmarknet API (agmarknet.gov.in)** for authentic and live crop price data.
+It also provides:
 
-### 🌾 Yield Estimation
-- Predicts yield based on environmental, crop, and seasonal data using the ML model.
+- CORS protection
+- Helmet security headers
+- global rate limiting
+- stricter AI route rate limiting
 
-### 📘 Farm Logbook & Community Support
-- Farmers can log daily activities, track progress, and share posts.  
-- Built with **Firebase Firestore** to store community posts and user data securely.
+### AI assistant
 
-### 🧑‍🌾 Secure Authentication
-- **Firebase Authentication** used for secure user login, signup, and account management.
+The chat service now uses GitHub Models through:
 
-### 💬 AI-Powered Support
-- The integrated AI assistant provides context-aware suggestions and helps resolve farming queries.
+- `@azure-rest/ai-inference`
+- `@azure/core-auth`
+- `GITHUB_TOKEN`
 
----
+Model flow:
 
-## 🧩 Tech Stack
+1. Try `openai/gpt-5`
+2. Fall back to `openai/gpt-4.1` if needed
 
-### 🌐 Frontend
-- **React.js**, **TypeScript**, **JavaScript**, **HTML**, **CSS**, **Tailwind CSS**  
-- Hosted on **Vercel**
+The assistant supports:
 
-### ⚙️ Backend
-- **Node.js**, **Express.js**, **Python (for ML models)**  
-- Hosted on **Render**
+- structured conversation history
+- markdown-formatted replies
+- streaming token delivery over SSE
 
-### 🧠 Machine Learning & AI
-- **Hugging Face Inference API**  
-- **DeepSeek AI** (for Farming Assistant)  
-- **Vision Transformer (ViT)** model for disease detection  
-- **Custom Yield Prediction Model** (trained on Kaggle dataset)
+### ML backend
 
-### ☁️ Database & Authentication
-- **Firebase Authentication** for secure user management  
-- **Firestore Database** for storing user profiles, community posts, and activity logs
+The crop disease model is deployed as a Hugging Face Docker Space and runs a Flask app behind Gunicorn.
 
-### 🌦️ APIs Used
-- **Open-Meteo API** – Real-time weather data  
-- **Tomorrow.io API** – Advanced weather forecasts  
-- **Agmarknet API** – Official government market prices  
-- **Hugging Face Inference API** – AI assistant & disease detection
+## ML architecture
 
----
+### 1) Input and validation
+- Receives a leaf image through `multipart/form-data` (`image` field).
+- Validates the file with PIL, converts it to RGB, and rejects empty/corrupted uploads.
+- Enforces a max image size with `MAX_IMG_MB`.
 
-## ⚙️ Installation
+### 2) Preprocessing
+- Resizes images to the checkpoint image size (default `300x300`).
+- Normalizes using ImageNet mean/std.
+- Converts to tensors with `ToTensorV2`.
+- Uses test-time augmentation (TTA) to improve robustness on small CPU deployments.
+
+### 3) Model architecture
+- Backbone: `tf_efficientnetv2_s` via `timm`.
+- Head: custom MLP classifier:
+  - `Linear -> BatchNorm -> SiLU -> Dropout`
+  - `Linear -> BatchNorm -> SiLU -> Dropout`
+  - final classification layer for all disease classes
+- Checkpoint stores the class list and config metadata.
+- The current checkpoint covers 15 classes across rice, cotton, sugarcane, and healthy variants.
+
+### 4) Inference flow
+- Runs on CPU with a single worker/thread for memory safety.
+- Uses a thread lock so concurrent requests do not collide during Grad-CAM generation.
+- Runs multiple TTA passes, averages probabilities, and returns top-5 predictions.
+- Maps the winning label to disease metadata (`severity`, `details`, `preventive`).
+
+### 5) Explainability
+- Grad-CAM is generated from the last available convolution layer.
+- The output is returned as a base64 PNG for UI display.
+
+### 6) Output schema
+- predicted label
+- confidence score
+- crop and disease name
+- severity metadata
+- preventive advice
+- top-5 predictions
+- Grad-CAM preview when available
+
+### 7) Deployment shape
+- Packaged as a Hugging Face Docker Space.
+- Served by Gunicorn on port `7860`.
+- Uses `best_model.pth` as the checkpoint artifact.
+
+**Endpoints**
+
+- `GET /health`
+- `POST /predict`
+
+**Request format**
+
+`multipart/form-data` with an `image` field.
+
+The model returns:
+
+- predicted label
+- confidence score
+- crop and disease name
+- severity metadata
+- preventive advice
+- top-5 predictions
+- Grad-CAM preview when available
+
+## Tech stack
+
+### Frontend
+- React
+- TypeScript
+- Vite
+- Tailwind CSS
+- Framer Motion
+- Firebase Auth / Firestore
+
+### Node backend
+- Express
+- Helmet
+- CORS
+- express-rate-limit
+- GitHub Models inference client
+
+### ML backend
+- Flask
+- Gunicorn
+- PyTorch
+- timm
+- albumentations
+- OpenCV
+
+## Environment variables
+
+### Root / frontend
+
+| Variable | Purpose |
+| --- | --- |
+| `VITE_BACKEND_URL` | Node server base URL |
+| `VITE_DISEASE_API_URL` | ML backend base URL |
+
+### Node server
+
+| Variable | Purpose |
+| --- | --- |
+| `GITHUB_TOKEN` | GitHub Models token for chat |
+| `GITHUB_MODELS_ENDPOINT` | GitHub Models endpoint (`https://models.github.ai/inference`) |
+| `ALLOWED_ORIGINS` | Comma-separated CORS origins |
+| `ML_SERVICE_URL` | ML backend URL for `/disease` proxying |
+| `NODE_ENV` | Production/runtime mode |
+
+### ML backend
+
+| Variable | Purpose |
+| --- | --- |
+| `MODEL_PATH` | Path to `best_model.pth` |
+| `PORT` | Space port (default `7860`) |
+| `TTA_STEPS` | Test-time augmentation count |
+| `MAX_IMG_MB` | Max upload size |
+| `ALLOWED_ORIGIN` | Allowed frontend origin |
+
+## Local development
 
 ```bash
-# Clone the repository
-git clone https://github.com/Agronex/Agro-nex.git
-
-# Navigate into the project directory
-cd Agro-nex
-
-# Navigate into the frontend directory
+# Install frontend deps
 cd client
-
-# Install dependencies
 npm install
 
-# Run the development server
+# Install Node server deps
+cd ../server
+npm install
+
+# Run frontend
+cd ../client
 npm run dev
+
+# Run Node server
+cd ../server
+npm start
+```
+
+## Disease detection flow
+
+The app supports both patterns:
+
+1. Frontend calls the Hugging Face Space directly using `VITE_DISEASE_API_URL`
+2. Node server proxies requests through `POST /disease` using `ML_SERVICE_URL`
+
+The current production-friendly path is direct frontend calls to the Space API.
+
+## AI chat flow
+
+The assistant uses multi-turn chat history, markdown rendering, and streaming output. The UI stores named threads per signed-in user in Firestore and can resume conversations after refresh.
+
+## Deployment notes
+
+- Node server is responsible for the main app API.
+- The crop disease model is hosted separately on Hugging Face Spaces to avoid memory pressure on Render.
+- Keep secrets out of source control; set them in your hosting dashboards or local `.env` files.
