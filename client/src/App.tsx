@@ -1,9 +1,10 @@
-import { useState, useCallback, useEffect, Suspense, lazy } from "react";
+import { useState, useCallback, useEffect, useRef, Suspense, lazy } from "react";
 import Header from "./components/Header";
 import Navigation from "./components/Navigation";
 import ErrorBoundary from "./components/ErrorBoundary";
 import LoadingSpinner from "./components/LoadingSpinner";
 import { useAuth } from "./contexts/AuthContext";
+import { useUserSettings } from "./contexts/UserSettingsContext";
 import Login from "./components/Login";
 import { getAlerts } from "./services/alertService";
 import { Alert } from "./types";
@@ -30,9 +31,11 @@ const ViewLoader = () => (
 function AppShell() {
   // ── All hooks are declared unconditionally ────────────────────────────────
   const { user } = useAuth();
+  const { settings } = useUserSettings();
   const [activeView, setActiveView] = useState("dashboard");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const hasAppliedDefaultView = useRef(false);
 
   // Fetch alerts on mount, refresh every 5 minutes
   useEffect(() => {
@@ -56,6 +59,13 @@ function AppShell() {
       clearInterval(interval);
     };
   }, [user]);
+
+  useEffect(() => {
+    if (user && !hasAppliedDefaultView.current) {
+      setActiveView(settings.session.defaultView);
+      hasAppliedDefaultView.current = true;
+    }
+  }, [settings.session.defaultView, user]);
 
   const handleMenuToggle = useCallback(() => setIsMenuOpen((p) => !p), []);
 

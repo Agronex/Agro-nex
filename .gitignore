@@ -1,5 +1,6 @@
 # Node modules
 node_modules/
+CropDiseaseDetection/
 # If using pnpm
 .pnpm-store/
 

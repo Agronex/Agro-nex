@@ -1,17 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Sun, Cloud, CloudRain, Droplets, Wind, Thermometer } from 'lucide-react';
 import { WeatherData } from '../types';
 import { getWeatherData } from '../services/weatherService';
 import LoadingSpinner from './LoadingSpinner';
 import { getTimeAgo } from '../utils/timeUtils';
+import { useUserSettings } from '../contexts/UserSettingsContext';
 
 const WeatherWidget: React.FC = () => {
+  const { settings } = useUserSettings();
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
-  const fetchWeather = async () => {
+  const fetchWeather = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -25,11 +27,35 @@ const WeatherWidget: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchWeather();
-  }, []);
+  }, [fetchWeather]);
+
+  useEffect(() => {
+    const interval = window.setInterval(fetchWeather, settings.weather.refreshMinutes * 60_000);
+    return () => window.clearInterval(interval);
+  }, [fetchWeather, settings.weather.refreshMinutes]);
+
+  const display = useMemo(() => {
+    if (!weather) return null;
+    if (settings.weather.units === 'metric') {
+      return {
+        temperature: weather.temperature,
+        rainfall: weather.rainfall,
+        windSpeed: weather.windSpeed,
+        unit: { temp: '°C', wind: 'km/h', rain: 'mm' },
+      };
+    }
+
+    return {
+      temperature: Math.round((weather.temperature * 9) / 5 + 32),
+      rainfall: Number((weather.rainfall / 25.4).toFixed(1)),
+      windSpeed: Number((weather.windSpeed / 1.609).toFixed(1)),
+      unit: { temp: '°F', wind: 'mph', rain: 'in' },
+    };
+  }, [settings.weather.units, weather]);
 
   const getWeatherIcon = (condition: string) => {
     switch (condition.toLowerCase()) {
@@ -41,10 +67,12 @@ const WeatherWidget: React.FC = () => {
 
   const getIrrigationAdvice = () => {
     if (!weather) return '';
+    const temp = display?.temperature ?? weather.temperature;
+    const tempUnit = display?.unit.temp ?? '°C';
     
     if (weather.rainfall > 5) return 'Skip irrigation - sufficient natural rainfall';
     if (weather.humidity > 80) return 'Reduce irrigation frequency';
-    if (weather.temperature > 30) return 'Increase irrigation, water early morning';
+    if (weather.temperature > 30) return `Increase irrigation, water early morning (${temp}${tempUnit})`;
     return 'Normal irrigation schedule recommended';
   };
 
@@ -96,7 +124,9 @@ const WeatherWidget: React.FC = () => {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h3 className="text-xl font-bold text-gray-800 mb-1">Current Weather</h3>
-          <p className="text-sm text-gray-600">Today's conditions</p>
+          <p className="text-sm text-gray-600">
+            Today's conditions{settings.weather.locationLabel ? ` · ${settings.weather.locationLabel}` : ''}
+          </p>
         </div>
         {getWeatherIcon(weather.condition)}
       </div>
@@ -104,7 +134,7 @@ const WeatherWidget: React.FC = () => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="text-center">
           <Thermometer className="w-5 h-5 text-red-500 mx-auto mb-1" />
-          <p className="text-2xl font-bold text-gray-800">{weather.temperature}°C</p>
+          <p className="text-2xl font-bold text-gray-800">{display?.temperature}{display?.unit.temp}</p>
           <p className="text-xs text-gray-600">Temperature</p>
         </div>
         <div className="text-center">
@@ -114,12 +144,12 @@ const WeatherWidget: React.FC = () => {
         </div>
         <div className="text-center">
           <CloudRain className="w-5 h-5 text-blue-600 mx-auto mb-1" />
-          <p className="text-2xl font-bold text-gray-800">{weather.rainfall}mm</p>
+          <p className="text-2xl font-bold text-gray-800">{display?.rainfall}{display?.unit.rain}</p>
           <p className="text-xs text-gray-600">Rainfall</p>
         </div>
         <div className="text-center">
           <Wind className="w-5 h-5 text-gray-500 mx-auto mb-1" />
-          <p className="text-2xl font-bold text-gray-800">{weather.windSpeed}km/h</p>
+          <p className="text-2xl font-bold text-gray-800">{display?.windSpeed}{display?.unit.wind}</p>
           <p className="text-xs text-gray-600">Wind</p>
         </div>
       </div>

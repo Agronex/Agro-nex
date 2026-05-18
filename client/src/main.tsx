@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { UserSettingsProvider } from "./contexts/UserSettingsContext";
 import App from "./App";
 import Welcome from "./components/Welcome";
 import "./index.css";
@@ -32,7 +33,9 @@ if (!container) throw new Error("Root element #root not found");
 createRoot(container).render(
   <StrictMode>
     <AuthProvider>
-      <RootApp />
+      <UserSettingsProvider>
+        <RootApp />
+      </UserSettingsProvider>
     </AuthProvider>
   </StrictMode>
 );
