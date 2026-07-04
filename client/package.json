@@ -1,8 +1,8 @@
 {
-  "name": "vite-react-typescript-starter",
+  "name": "agronex",
   "private": true,
   "proxy": "http://localhost:5000",
-  "version": "0.0.0",
+  "version": "3.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
