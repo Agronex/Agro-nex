@@ -4,6 +4,7 @@ import LoadingSpinner from "./LoadingSpinner";
 import { fetchWithRetry } from "../utils/retryFetch";
 import { addActivity } from "../utils/activityStore";
 import { invalidateAlertCache } from "../services/alertService";
+import { BACKEND_URL } from "../config/backend";
 
 /** Shape of the enriched response from our Python ML service */
 interface MLPrediction {
@@ -104,7 +105,7 @@ const CropDiseaseDetection: React.FC = () => {
       const formData = new FormData();
       formData.append("image", selectedFile);
 
-      const diseaseApiUrl = import.meta.env.VITE_DISEASE_API_URL || "http://localhost:5000";
+      const diseaseApiUrl = import.meta.env.VITE_DISEASE_API_URL || BACKEND_URL;
       const response = await fetchWithRetry(`${diseaseApiUrl}/predict`, { method: "POST", body: formData }, 3);
 
       if (!response.ok) {

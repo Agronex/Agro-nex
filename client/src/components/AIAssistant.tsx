@@ -17,6 +17,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSanitize from "rehype-sanitize";
 import { fetchWithTimeout } from "../utils/fetchWithTimeout";
+import { BACKEND_URL } from "../config/backend";
 import { useAuth } from "../contexts/AuthContext";
 import { useUserSettings } from "../contexts/UserSettingsContext";
 import {
@@ -117,8 +118,6 @@ const AIAssistantPopup: React.FC = () => {
   const [status, setStatus] = useState<string>("Ready");
   const containerRef = useRef<HTMLDivElement | null>(null);
   const abortRef = useRef<AbortController | null>(null);
-
-  const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
 
   const currentThread = useMemo(
     () => threads.find((thread) => thread.id === activeThreadId) || null,
@@ -330,7 +329,7 @@ const AIAssistantPopup: React.FC = () => {
       };
 
       const response = await fetchWithTimeout(
-        `${backendUrl}/chat`,
+        `${BACKEND_URL}/chat`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -350,7 +349,7 @@ const AIAssistantPopup: React.FC = () => {
       await persistAssistantResponse(threadId, reply);
       setStatus(data.model ? `Answered via ${data.model}` : "Answered");
     },
-    [backendUrl, buildConversation, persistAssistantResponse, settings.ai.maxTokens, settings.ai.temperature],
+    [buildConversation, persistAssistantResponse, settings.ai.maxTokens, settings.ai.temperature],
   );
 
   const sendStreaming = useCallback(
@@ -372,7 +371,7 @@ const AIAssistantPopup: React.FC = () => {
       ]);
 
       try {
-        const response = await fetch(`${backendUrl}/chat/stream`, {
+        const response = await fetch(`${BACKEND_URL}/chat/stream`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -412,7 +411,7 @@ const AIAssistantPopup: React.FC = () => {
         window.clearTimeout(timeoutId);
       }
     },
-    [backendUrl, buildConversation, persistAssistantResponse, settings.ai.maxTokens, settings.ai.temperature],
+    [buildConversation, persistAssistantResponse, settings.ai.maxTokens, settings.ai.temperature],
   );
 
   const sendMessage = useCallback(
