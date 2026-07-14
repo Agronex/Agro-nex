@@ -6,6 +6,7 @@ import { makeCacheKey, inFlightRequests } from "../services/lib-cache.js";
 const router = express.Router();
 
 const ALERT_CACHE_DURATION = Number(process.env.ALERT_CACHE_MS) || 1000 * 60 * 5; // 5m
+const MAX_ALERTS_CACHE_SIZE = 50;
 const alertsCache = new Map();
 
 /**
@@ -33,6 +34,7 @@ router.get("/", async (req, res) => {
     const cached = alertsCache.get(key);
     if (cached && Date.now() - cached.time < ALERT_CACHE_DURATION) {
       logger.info("Alerts cache hit", { key });
+      res.set("Cache-Control", "public, max-age=300");
       return res.json(cached.data);
     }
 
@@ -88,7 +90,11 @@ router.get("/", async (req, res) => {
         uvIndex,
       });
 
-      // store in route-level cache
+      // store in route-level cache (evict oldest if at capacity)
+      if (alertsCache.size >= MAX_ALERTS_CACHE_SIZE) {
+        const oldestKey = alertsCache.keys().next().value;
+        alertsCache.delete(oldestKey);
+      }
       alertsCache.set(key, { data: alerts, time: Date.now() });
 
       return alerts;
@@ -97,6 +103,7 @@ router.get("/", async (req, res) => {
     inFlightRequests.set(inflightKey, promise);
     try {
       const alerts = await promise;
+      res.set("Cache-Control", "public, max-age=300");
       return res.json(alerts);
     } finally {
       inFlightRequests.delete(inflightKey);

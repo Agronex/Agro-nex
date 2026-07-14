@@ -5,6 +5,9 @@
  */
 import { CropPrice, YieldPrediction } from '../types';
 
+const PRICE_CACHE_KEY = 'agronex_crop_prices_v1';
+const PRICE_CACHE_TTL = 15 * 60 * 1000; // 15 minutes
+
 // ── Market Prices ─────────────────────────────────────────────────────────────
 const PRIORITY_COMMODITIES = [
   'Wheat', 'Rice', 'Onion', 'Tomato', 'Potato',
@@ -12,6 +15,19 @@ const PRIORITY_COMMODITIES = [
 ];
 
 export async function getCropPrices(): Promise<CropPrice[]> {
+  // Check localStorage cache first
+  try {
+    const raw = localStorage.getItem(PRICE_CACHE_KEY);
+    if (raw) {
+      const { data, timestamp } = JSON.parse(raw);
+      if (Date.now() - timestamp < PRICE_CACHE_TTL && Array.isArray(data) && data.length > 0) {
+        return data;
+      }
+    }
+  } catch {
+    localStorage.removeItem(PRICE_CACHE_KEY);
+  }
+
   const url =
     'https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070' +
     '?api-key=579b464db66ec23bdd000001cdd3946e44ce4aad7209ff7b23ac571b' +
@@ -50,11 +66,18 @@ export async function getCropPrices(): Promise<CropPrice[]> {
     });
 
     // Sort priority commodities first
-    return formatted.sort((a, b) => {
+    const sorted = formatted.sort((a, b) => {
       const ap = PRIORITY_COMMODITIES.includes(a.name) ? 0 : 1;
       const bp = PRIORITY_COMMODITIES.includes(b.name) ? 0 : 1;
       return ap - bp;
     });
+
+    // Cache the result
+    try {
+      localStorage.setItem(PRICE_CACHE_KEY, JSON.stringify({ data: sorted, timestamp: Date.now() }));
+    } catch { /* storage full — not critical */ }
+
+    return sorted;
   } catch (err) {
     clearTimeout(timeout);
     console.error('[MarketPrices] Fetch failed:', err instanceof Error ? err.message : err);
@@ -75,13 +98,9 @@ const YIELD_ESTIMATES: YieldPrediction[] = [
 ];
 
 export function getYieldPrediction(cropName: string): Promise<YieldPrediction> {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      const prediction = YIELD_ESTIMATES.find(
-        (p) => p.cropName.toLowerCase() === cropName.toLowerCase()
-      );
-      if (prediction) resolve(prediction);
-      else reject(new Error(`No yield data for crop: ${cropName}`));
-    }, 1000); // Simulated latency
-  });
+  const prediction = YIELD_ESTIMATES.find(
+    (p) => p.cropName.toLowerCase() === cropName.toLowerCase()
+  );
+  if (prediction) return Promise.resolve(prediction);
+  return Promise.reject(new Error(`No yield data for crop: ${cropName}`));
 }

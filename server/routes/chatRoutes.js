@@ -15,11 +15,12 @@ const client = token
   ? ModelClient(endpoint, new AzureKeyCredential(token))
   : null;
 
-const MODEL_CHAIN = ["openai/gpt-4o"];
+const MODEL_CHAIN = ["openai/gpt-4o-mini", "openai/gpt-4o"];
 const MAX_HISTORY = 20;
 const MAX_MESSAGE_LENGTH = 2000;
-const DEFAULT_MAX_TOKENS = 700;
+const DEFAULT_MAX_TOKENS = 512;
 const DEFAULT_TEMPERATURE = 0.55;
+const API_TIMEOUT_MS = 25000;
 
 const SYSTEM_PROMPT =
   "You are AgroNex AI, a professional farming assistant. " +
@@ -101,9 +102,13 @@ async function getCompletionWithFallback(conversation, options) {
 
   for (const model of MODEL_CHAIN) {
     try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
       const response = await client.path("/chat/completions").post({
         body: buildRequestBody(conversation, options, model, false),
+        abortSignal: controller.signal,
       });
+      clearTimeout(timer);
 
       if (isUnexpected(response)) {
         throw extractModelError(response);
@@ -130,12 +135,16 @@ async function streamCompletionWithFallback(res, conversation, options) {
     let emittedToken = false;
 
     try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
       const response = await client
         .path("/chat/completions")
         .post({
           body: buildRequestBody(conversation, options, model, true),
+          abortSignal: controller.signal,
         })
         .asNodeStream();
+      clearTimeout(timer);
 
       if (response.status !== 200 && response.status !== "200" || !response.body) {
         throw extractModelError(response);
@@ -149,7 +158,14 @@ async function streamCompletionWithFallback(res, conversation, options) {
         if (!event?.data) continue;
         if (event.data === "[DONE]") break;
 
-        const payload = JSON.parse(event.data);
+        const payload = (() => {
+          try {
+            return JSON.parse(event.data);
+          } catch {
+            return null;
+          }
+        })();
+        if (!payload) continue;
         const choices = Array.isArray(payload?.choices) ? payload.choices : [];
 
         for (const choice of choices) {

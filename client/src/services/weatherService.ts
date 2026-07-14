@@ -4,7 +4,7 @@ import { BACKEND_URL } from '../config/backend';
 const CACHE_KEY = 'agronex_weather_v2';
 const CACHE_TTL = 10 * 60 * 1000; // 10 minutes (matches server cache)
 const REQUEST_TIMEOUT = 10_000;
-const GEO_TIMEOUT_MS = 8_000;
+const GEO_TIMEOUT_MS = 5_000;
 
 function isFallbackWeather(data: any): boolean {
   return (
@@ -121,30 +121,46 @@ export async function getWeatherData(): Promise<any> {
 
   const { latitude: lat, longitude: lon } = position.coords;
 
-  // Primary backend fetch
-  const response = await fetchWithTimeout(
-    `${BACKEND_URL}/weather`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lat, lon }),
-    },
-    REQUEST_TIMEOUT
-  );
-
-  if (response.ok) {
-    const data = await response.json();
-
-    // If backend returned a fallback shell, try direct Open-Meteo once.
-    const finalData = isFallbackWeather(data) ? await fetchDirectWeather(lat, lon) : data;
-
+  // Primary backend fetch with one retry
+  for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      localStorage.setItem(CACHE_KEY, JSON.stringify({ data: finalData, timestamp: Date.now() }));
-    } catch {
-      // ignore storage errors
-    }
+      const response = await fetchWithTimeout(
+        `${BACKEND_URL}/weather`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ lat, lon }),
+        },
+        REQUEST_TIMEOUT
+      );
 
-    return finalData;
+      if (response.ok) {
+        const data = await response.json();
+
+        // If backend returned a fallback shell, try direct Open-Meteo once.
+        const finalData = isFallbackWeather(data) ? await fetchDirectWeather(lat, lon) : data;
+
+        try {
+          localStorage.setItem(CACHE_KEY, JSON.stringify({ data: finalData, timestamp: Date.now() }));
+        } catch {
+          // ignore storage errors
+        }
+
+        return finalData;
+      }
+
+      // Non-ok response on first attempt — retry once
+      if (attempt === 0) {
+        await new Promise(r => setTimeout(r, 1000));
+        continue;
+      }
+    } catch {
+      if (attempt === 0) {
+        await new Promise(r => setTimeout(r, 1000));
+        continue;
+      }
+    }
+    break;
   }
 
   // Backend failed -> direct Open-Meteo fallback

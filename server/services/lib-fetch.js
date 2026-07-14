@@ -11,6 +11,11 @@ function delay(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+/** Add random jitter (0–50% extra) to prevent thundering herd on retries */
+function jitter(baseMs) {
+  return baseMs + Math.floor(Math.random() * baseMs * 0.5);
+}
+
 export default async function fetchWithRetry(url, { timeout = 5000, retries = 1, fetchOptions = {} } = {}) {
   let attempt = 0;
   let lastErr = null;
@@ -26,7 +31,7 @@ export default async function fetchWithRetry(url, { timeout = 5000, retries = 1,
       // Treat 502/503/504 as retryable
       if ((res.status >= 500 && res.status < 600) && attempt < retries) {
         logger.warn("Retrying fetch due to server error", { url, status: res.status, attempt });
-        await delay(100 * 2 ** attempt);
+        await delay(jitter(100 * 2 ** attempt));
         attempt++;
         continue;
       }
@@ -44,7 +49,7 @@ export default async function fetchWithRetry(url, { timeout = 5000, retries = 1,
 
       if (attempt < retries) {
         logger.info("Retrying fetch", { url, attempt });
-        await delay(150 * 2 ** attempt);
+        await delay(jitter(150 * 2 ** attempt));
         attempt++;
         continue;
       }
