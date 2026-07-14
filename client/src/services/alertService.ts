@@ -1,6 +1,6 @@
 import { Alert } from '../types';
+import { BACKEND_URL } from '../config/backend';
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 const CACHE_KEY   = 'agronex_alerts_v2';   // versioned to bust stale caches
 const CACHE_TTL   = 5 * 60 * 1000;         // 5 minutes
 

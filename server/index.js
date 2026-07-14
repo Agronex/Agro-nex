@@ -16,20 +16,24 @@ const app = express();
 // ── Security headers ─────────────────────────────────────────────────────────
 app.use(helmet());
 
-// ── CORS — restrict to known origins in production ───────────────────────────
+// ── CORS — allow configured origins plus Vercel preview domains ──────────────
 const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
-  : [
-      "http://localhost:5173",
-      "https://agronex1.vercel.app",
-    ];
+  : [];
+
+function isAllowedOrigin(origin) {
+  if (!origin) return true;
+  if (origin === "http://localhost:5173") return true;
+  if (ALLOWED_ORIGINS.includes(origin)) return true;
+  // Allow any Vercel deployment / preview URL unless explicitly overridden
+  return /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin);
+}
 
 app.use(
   cors({
     origin: (origin, callback) => {
       // Allow requests with no origin (mobile apps, curl, Render health checks)
-      if (!origin) return callback(null, true);
-      if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+      if (isAllowedOrigin(origin)) return callback(null, true);
       callback(new Error(`CORS: origin ${origin} not allowed`));
     },
     methods: ["GET", "POST", "OPTIONS"],
