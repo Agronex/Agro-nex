@@ -16,7 +16,7 @@ const client = token
   : null;
 
 const MODEL_CHAIN = ["openai/gpt-4o-mini", "openai/gpt-4o"];
-const MAX_HISTORY = 20;
+const MAX_HISTORY = 40;
 const MAX_MESSAGE_LENGTH = 2000;
 const DEFAULT_MAX_TOKENS = 512;
 const DEFAULT_TEMPERATURE = 0.55;
@@ -78,12 +78,23 @@ function buildRequestBody(conversation, options, model, stream = false) {
   const temperature = clamp(options?.temperature, 0, 1.2, DEFAULT_TEMPERATURE);
   const max_tokens = clamp(options?.maxTokens, 128, 1200, DEFAULT_MAX_TOKENS);
 
+  const tone = ["professional", "friendly", "coach"].includes(options?.tone)
+    ? options.tone
+    : "professional";
+  const responseLength = ["short", "balanced", "detailed"].includes(options?.responseLength)
+    ? options.responseLength
+    : "balanced";
+  const practicalBias = typeof options?.practicalBias === "boolean" ? options.practicalBias : true;
+  const preferenceInstruction =
+    `User preferences: use a ${tone} tone, keep responses ${responseLength}, and ` +
+    `${practicalBias ? "prioritize practical farm actions." : "balance practical actions with explanation."}`;
+
   return {
     model,
     stream,
     temperature,
     max_tokens,
-    messages: [{ role: "system", content: SYSTEM_PROMPT }, ...conversation],
+    messages: [{ role: "system", content: `${SYSTEM_PROMPT} ${preferenceInstruction}` }, ...conversation],
   };
 }
 
@@ -128,7 +139,7 @@ async function getCompletionWithFallback(conversation, options) {
   throw new Error(failures.join(" | "));
 }
 
-async function streamCompletionWithFallback(res, conversation, options) {
+async function streamCompletionWithFallback(res, conversation, options, signal) {
   const failures = [];
 
   for (const model of MODEL_CHAIN) {
@@ -136,6 +147,9 @@ async function streamCompletionWithFallback(res, conversation, options) {
 
     try {
       const controller = new AbortController();
+      const abortUpstream = () => controller.abort();
+      if (signal?.aborted) controller.abort();
+      signal?.addEventListener("abort", abortUpstream, { once: true });
       const timer = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
       const response = await client
         .path("/chat/completions")
@@ -145,6 +159,7 @@ async function streamCompletionWithFallback(res, conversation, options) {
         })
         .asNodeStream();
       clearTimeout(timer);
+      signal?.removeEventListener("abort", abortUpstream);
 
       if (response.status !== 200 && response.status !== "200" || !response.body) {
         throw extractModelError(response);
@@ -233,14 +248,14 @@ router.post("/stream", async (req, res) => {
   res.setHeader("Connection", "keep-alive");
   res.flushHeaders?.();
 
+  const clientAbort = new AbortController();
   req.on("close", () => {
-    if (!res.writableEnded) {
-      res.end();
-    }
+    clientAbort.abort();
+    if (!res.writableEnded) res.end();
   });
 
   try {
-    await streamCompletionWithFallback(res, conversation, req.body?.options);
+    await streamCompletionWithFallback(res, conversation, req.body?.options, clientAbort.signal);
   } catch (error) {
     console.error("[Chat Stream Error]", error?.message || error);
     if (!res.writableEnded) {

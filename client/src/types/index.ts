@@ -23,6 +23,9 @@ export interface CropPrice {
   name: string;
   currentPrice: number;
   previousPrice: number;
+  minPrice: number;
+  modalPrice: number;
+  maxPrice: number;
   change: number;
   changePercent: number;
   unit: string;

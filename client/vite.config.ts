@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
@@ -34,5 +34,10 @@ export default defineConfig({
   // Let Vite pre-bundle lucide-react properly (was excluded before = slower dev)
   optimizeDeps: {
     include: ['lucide-react'],
+  },
+  test: {
+    environment: "jsdom",
+    setupFiles: "./src/test/setup.ts",
+    globals: true,
   },
 });

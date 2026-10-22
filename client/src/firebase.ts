@@ -1,7 +1,7 @@
 // src/firebase.ts
 import { initializeApp, getApps } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
-import { getFirestore, initializeFirestore } from "firebase/firestore";
+import { Firestore, getFirestore, initializeFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAhoquiKJ6S2OTM3A5PaSeX0JOQsD1jJcE",
@@ -17,11 +17,10 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0
 
 export const auth = getAuth(app);
 
-let db;
+let db: Firestore;
 try {
   db = initializeFirestore(app, {
     experimentalForceLongPolling: true,
-    useFetchStreams: false,
   });
 } catch {
   db = getFirestore(app);

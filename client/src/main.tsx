@@ -5,6 +5,9 @@ import { UserSettingsProvider } from "./contexts/UserSettingsContext";
 import App from "./App";
 import Welcome from "./components/Welcome";
 import "./index.css";
+import { BACKEND_URL } from "./config/backend";
+
+void fetch(`${BACKEND_URL}/health`).catch(() => {});
 
 // Proper loading screen — no raw "Loading..." text
 function LoadingScreen() {

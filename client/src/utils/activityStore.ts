@@ -13,12 +13,14 @@ export interface ActivityEvent {
   color: 'green' | 'blue' | 'yellow' | 'red' | 'purple';
 }
 
-const STORAGE_KEY = 'agronex_activity';
+function getStorageKey(uid?: string | null) {
+  return `agronex_activity_${uid || 'guest'}`;
+}
 const MAX_EVENTS = 20;
 
-export function getRecentActivity(): ActivityEvent[] {
+export function getRecentActivity(uid?: string | null): ActivityEvent[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(getStorageKey(uid));
     if (!raw) return [];
     return JSON.parse(raw) as ActivityEvent[];
   } catch {
@@ -26,23 +28,23 @@ export function getRecentActivity(): ActivityEvent[] {
   }
 }
 
-export function addActivity(event: Omit<ActivityEvent, 'id' | 'timestamp'>): void {
+export function addActivity(event: Omit<ActivityEvent, 'id' | 'timestamp'>, uid?: string | null): void {
   try {
-    const events = getRecentActivity();
+    const events = getRecentActivity(uid);
     const newEvent: ActivityEvent = {
       ...event,
       id: Date.now().toString(),
       timestamp: new Date().toISOString(),
     };
     const updated = [newEvent, ...events].slice(0, MAX_EVENTS);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    localStorage.setItem(getStorageKey(uid), JSON.stringify(updated));
   } catch {
     // ignore storage errors
   }
 }
 
-export function clearActivity(): void {
-  localStorage.removeItem(STORAGE_KEY);
+export function clearActivity(uid?: string | null): void {
+  localStorage.removeItem(getStorageKey(uid));
 }
 
 /** Helper to get a time-ago string from ISO timestamp */

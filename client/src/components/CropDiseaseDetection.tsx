@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { Camera, Upload, AlertTriangle, X, CheckCircle, Microscope } from "lucide-react";
 import LoadingSpinner from "./LoadingSpinner";
 import { fetchWithRetry } from "../utils/retryFetch";
@@ -62,7 +62,7 @@ const CropDiseaseDetection: React.FC = () => {
   const validateFile = (file: File): string[] => {
     const errors: string[] = [];
     if (!file.type.startsWith("image/")) errors.push("Please upload an image file (JPG, PNG, etc.)");
-    if (file.size > 10 * 1024 * 1024) errors.push("File size must be less than 10MB");
+    if (file.size > 8 * 1024 * 1024) errors.push("File size must be less than 8MB");
     return errors;
   };
 
@@ -86,6 +86,23 @@ const CropDiseaseDetection: React.FC = () => {
     });
   };
 
+  useEffect(() => () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+  }, [previewUrl]);
+
+  const compressImage = async (file: File): Promise<Blob> => {
+    const source = await createImageBitmap(file);
+    const scale = Math.min(1, 800 / Math.max(source.width, source.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(source.width * scale);
+    canvas.height = Math.round(source.height * scale);
+    canvas.getContext("2d")?.drawImage(source, 0, 0, canvas.width, canvas.height);
+    source.close();
+    return new Promise((resolve, reject) =>
+      canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("Unable to optimize image")), "image/jpeg", 0.85),
+    );
+  };
+
   const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setDragActive(false);
@@ -103,10 +120,11 @@ const CropDiseaseDetection: React.FC = () => {
 
     try {
       const formData = new FormData();
-      formData.append("image", selectedFile);
+      formData.append("image", await compressImage(selectedFile), "leaf.jpg");
 
-      const diseaseApiUrl = import.meta.env.VITE_DISEASE_API_URL || BACKEND_URL;
-      const response = await fetchWithRetry(`${diseaseApiUrl}/predict`, { method: "POST", body: formData }, 3);
+      const rawApiUrl = (import.meta.env.VITE_DISEASE_API_URL || "").trim().replace(/\/+$/, "");
+      const endpoint = rawApiUrl ? `${rawApiUrl}/predict` : `${BACKEND_URL.replace(/\/+$/, "")}/disease`;
+      const response = await fetchWithRetry(endpoint, { method: "POST", body: formData }, 3);
 
       if (!response.ok) {
         const err = await response.json().catch(() => ({}));
@@ -182,7 +200,7 @@ const CropDiseaseDetection: React.FC = () => {
             {uploadError && (
               <p className="text-red-500 mb-3 p-2 bg-red-50 rounded text-sm">{uploadError}</p>
             )}
-            <p className="text-gray-400 text-xs">JPG, PNG — max 10MB</p>
+            <p className="text-gray-400 text-xs">JPG, PNG — max 8MB</p>
             <input type="file" accept="image/*" onChange={handleFileSelect} className="hidden" id="image-upload" />
             <button
               type="button"
