@@ -1,4 +1,4 @@
-name: AgroNex CI/CD
+name: AgroNex Production CI/CD & Reliability Pipeline
 
 on:
   push:
@@ -6,61 +6,317 @@ on:
   pull_request:
     branches: [main]
   schedule:
+    # Keep Render and the configured ML service warm on the free tier.
     - cron: "*/14 * * * *"
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: agronex-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  NODE_VERSION: "20"
+  FRONTEND_DIR: client
+  BACKEND_DIR: server
+
 jobs:
-  frontend:
+  repository-hygiene:
     if: github.event_name != 'schedule'
+    name: Repository Hygiene & Configuration
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate tracked dependency manifests
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f client/package.json
+          test -f client/package-lock.json
+          test -f server/package.json
+          test -f server/package-lock.json
+          git ls-files --error-unmatch client/package-lock.json server/package-lock.json
+
+      - name: Validate deployment configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f render.yaml
+          test -f server/Dockerfile
+          ! grep -q "agronex-ml" render.yaml
+          ! grep -q "npm ci --only=production" render.yaml server/Dockerfile
+          grep -q "npm ci --omit=dev" render.yaml
+          grep -q "npm ci --omit=dev" server/Dockerfile
+
+      - name: Validate Firestore security guardrails
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f firestore.rules
+          ! grep -Eq "allow (read|write|read, write): if true" firestore.rules
+          grep -q "request.auth.uid == userId" firestore.rules
+          grep -q "request.resource.data.authorId == request.auth.uid" firestore.rules
+          grep -q "hasOnly.*likes" firestore.rules
+
+      - name: Check for committed runtime secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git grep -n -I -E \
+            '-----BEGIN (RSA|OPENSSH|EC|PGP) PRIVATE KEY-----|gh[pousr]_[A-Za-z0-9_]{20,}|xox[baprs]-[A-Za-z0-9-]{20,}' \
+            -- ':!*.lock' ':!.github/workflows/ci-cd.yml'; then
+            echo "::error::Potential secret value found in tracked files."
+            exit 1
+          fi
+
+  frontend-verify:
+    if: github.event_name != 'schedule'
+    name: Frontend Lint, Typecheck, Tests & Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: client
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: client/package-lock.json
-      - run: npm ci
-      - run: npm run lint
-      - run: npx tsc -b --noEmit
-      - run: npm test
-      - run: npm run build
 
-  backend:
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Verify dependency tree
+        run: npm ls --all
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run strict TypeScript compiler check
+        run: npx tsc -b --noEmit
+
+      - name: Run frontend unit tests
+        run: npm test
+
+      - name: Build production bundle
+        env:
+          VITE_BACKEND_URL: https://agro-nex.onrender.com
+        run: npm run build
+
+      - name: Verify JavaScript bundle size budget
+        shell: bash
+        run: |
+          set -euo pipefail
+          max_bytes=$((600 * 1024))
+          found=0
+          while IFS= read -r -d '' file; do
+            found=1
+            size=$(stat -c%s "$file")
+            echo "$file: $((size / 1024)) KiB"
+            if (( size > max_bytes )); then
+              echo "::error file=$file::JavaScript chunk exceeds the 600 KiB budget."
+              exit 1
+            fi
+          done < <(find dist/assets -type f -name '*.js' -print0)
+          test "$found" -eq 1
+
+      - name: Upload frontend build and coverage artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-artifacts
+          path: |
+            client/dist
+            client/coverage
+          if-no-files-found: ignore
+          retention-days: 14
+
+  backend-verify:
     if: github.event_name != 'schedule'
+    name: Backend Integration & Resilience Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: server
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: server/package-lock.json
-      - run: npm ci
-      - run: npm test
 
-  firestore:
-    if: github.event_name != 'schedule'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: test -f firestore.rules
-      - run: "! grep -q 'allow read: if true' firestore.rules"
+      - name: Install backend dependencies
+        run: npm ci
 
-  production-smoke:
-    if: always() && (github.event_name == 'schedule' || github.ref == 'refs/heads/main')
-    runs-on: ubuntu-latest
-    steps:
-      - name: Keep Render warm
+      - name: Verify dependency tree
+        run: npm ls --all
+
+      - name: Run backend tests
         env:
-          BACKEND_URL: ${{ secrets.PROD_BACKEND_URL || 'https://agro-nex.onrender.com' }}
-        run: curl --fail --max-time 45 "$BACKEND_URL/health"
+          NODE_ENV: test
+        run: npm test
+
+      - name: Check backend starts and serves health
+        shell: bash
+        run: |
+          set -euo pipefail
+          NODE_ENV=production PORT=5001 node index.js > /tmp/agronex-server.log 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          for attempt in {1..20}; do
+            if curl --fail --silent --show-error http://127.0.0.1:5001/health; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/agronex-server.log
+          exit 1
+
+      - name: Upload backend logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-logs
+          path: /tmp/agronex-server.log
+          if-no-files-found: ignore
+          retention-days: 14
+
+  dependency-security:
+    if: github.event_name != 'schedule'
+    name: Dependency Security Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            client/package-lock.json
+            server/package-lock.json
+
+      - name: Audit frontend dependencies
+        working-directory: client
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Audit backend dependencies
+        working-directory: server
+        run: npm audit --omit=dev --audit-level=high
+
+  codeql:
+    if: github.event_name != 'schedule'
+    name: CodeQL Security Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+
+      - name: Analyze with CodeQL
+        uses: github/codeql-action/analyze@v3
+
+  production-smoke-and-keepalive:
+    name: Production Health, Latency & Keep-Alive Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs:
+      - repository-hygiene
+      - frontend-verify
+      - backend-verify
+      - dependency-security
+      - codeql
+    if: |
+      always() &&
+      (github.event_name == 'schedule' || github.ref == 'refs/heads/main') &&
+      (github.event_name == 'schedule' || needs.repository-hygiene.result == 'success') &&
+      (github.event_name == 'schedule' || needs.frontend-verify.result == 'success') &&
+      (github.event_name == 'schedule' || needs.backend-verify.result == 'success') &&
+      (github.event_name == 'schedule' || needs.dependency-security.result == 'success') &&
+      (github.event_name == 'schedule' || needs.codeql.result == 'success')
+    steps:
+      - name: Resolve production URLs
+        id: urls
+        env:
+          CONFIGURED_BACKEND_URL: ${{ secrets.PROD_BACKEND_URL }}
+          CONFIGURED_HF_SPACE_URL: ${{ secrets.PROD_DISEASE_API_URL }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          backend="${CONFIGURED_BACKEND_URL:-https://agro-nex.onrender.com}"
+          backend="${backend%/}"
+          echo "backend=$backend" >> "$GITHUB_OUTPUT"
+          if [[ -n "$CONFIGURED_HF_SPACE_URL" ]]; then
+            echo "hf_space=${CONFIGURED_HF_SPACE_URL%/}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Ping Render backend and measure latency
+        env:
+          BACKEND_URL: ${{ steps.urls.outputs.backend }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error \
+            --retry 3 --retry-delay 5 --max-time 60 \
+            --write-out '\nHTTP %{http_code} in %{time_total}s\n' \
+            "$BACKEND_URL/health"
+
+      - name: Ping Hugging Face ML Space
+        if: steps.urls.outputs.hf_space != ''
+        env:
+          HF_SPACE_URL: ${{ steps.urls.outputs.hf_space }}
+        run: |
+          curl --fail --silent --show-error \
+            --retry 2 --retry-delay 5 --max-time 90 \
+            "$HF_SPACE_URL/health"
+
+      - name: Smoke test alerts and five-day weather
+        env:
+          BACKEND_URL: ${{ steps.urls.outputs.backend }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          alerts="$(mktemp)"
+          weather="$(mktemp)"
+          trap 'rm -f "$alerts" "$weather"' EXIT
+
+          curl --fail --silent --show-error --retry 2 --max-time 45 \
+            "$BACKEND_URL/alerts?lat=10.96&lon=79.38" > "$alerts"
+          jq -e 'type == "array"' "$alerts" > /dev/null
+
+          curl --fail --silent --show-error --retry 2 --max-time 60 \
+            -X POST "$BACKEND_URL/weather" \
+            -H "Content-Type: application/json" \
+            --data '{"lat":10.96,"lon":79.38}' > "$weather"
+          jq -e '.forecast | type == "array" and length >= 5' "$weather" > /dev/null
+
+      - name: Report scheduled check context
+        if: github.event_name == 'schedule'
+        run: echo "Scheduled production keep-alive completed successfully."
