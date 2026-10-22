@@ -23,6 +23,7 @@ dist-ssr
 *.sln
 *.sw?
 .env
+!.env.example
 # Node modules
 node_modules/
 # If using pnpm
@@ -68,7 +69,6 @@ firebase.json
 # Optional: Yarn / package managers
 yarn-error.log
 pnpm-lock.yaml
-package-lock.json
 
 # Mac / Linux system files
 *.DS_Store

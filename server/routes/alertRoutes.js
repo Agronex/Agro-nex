@@ -48,7 +48,7 @@ router.get("/", async (req, res) => {
 
     const promise = (async () => {
       // Use shared weather service (Open-Meteo only through service)
-      const openRes = await weatherService.getOpenMeteoRaw(parsedLat, parsedLon, { days: 3 });
+      const openRes = await weatherService.getOpenMeteoRaw(parsedLat, parsedLon, { days: 5 });
       const openRaw = openRes.data;
 
       if (!openRaw || !openRaw.current_weather || !openRaw.daily) {
@@ -57,8 +57,10 @@ router.get("/", async (req, res) => {
       }
 
       // Extract humidity safely
-      const nowDate = new Date();
-      const currentHourISO = nowDate.toISOString().slice(0, 13);
+      const localNow = new Date(
+        Date.now() + (openRaw?.utc_offset_seconds || 0) * 1000
+      );
+      const currentHourISO = localNow.toISOString().slice(0, 13);
       const hourlyTimes = openRaw?.hourly?.time || [];
       const humidityValues = openRaw?.hourly?.relative_humidity_2m || [];
       const hourIndex = hourlyTimes.findIndex((t) => t.startsWith(currentHourISO));

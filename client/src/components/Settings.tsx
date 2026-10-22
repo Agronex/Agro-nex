@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   Activity,
@@ -141,6 +141,16 @@ function NumberRow({
   step?: number;
   unit?: string;
 }) {
+  const pendingValue = useRef(value);
+  const timer = useRef<number | undefined>();
+  useEffect(() => () => {
+    if (timer.current) window.clearTimeout(timer.current);
+  }, []);
+  const handleChange = (next: number) => {
+    pendingValue.current = next;
+    window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => onChange(pendingValue.current), 400);
+  };
   return (
     <div className="grid md:grid-cols-[1fr_220px] gap-3 items-center py-3">
       <div>
@@ -154,7 +164,7 @@ function NumberRow({
           max={max}
           step={step ?? 1}
           value={value}
-          onChange={(e) => onChange(Number(e.target.value))}
+          onChange={(e) => handleChange(Number(e.target.value))}
           className="flex-1 accent-green-600"
         />
         <div className="w-16 text-right text-sm font-semibold text-gray-700">

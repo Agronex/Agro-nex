@@ -141,6 +141,12 @@ const AIAssistantPopup: React.FC = () => {
     setLoadingThreads(true);
 
     const hydrate = async () => {
+      if (!settings.privacy.saveChatHistory) {
+        setThreads([]);
+        setActiveThreadId("ephemeral");
+        setMessages([]);
+        return;
+      }
       const loadedThreads = await listChatThreads(user.uid);
       if (cancelled) return;
 
@@ -174,7 +180,7 @@ const AIAssistantPopup: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [settings.privacy.saveChatHistory, user]);
 
   useEffect(() => {
     if (!user || !activeThreadId) return;
@@ -302,6 +308,12 @@ const AIAssistantPopup: React.FC = () => {
 
   const persistAssistantResponse = useCallback(async (threadId: string, content: string) => {
     if (!user) return;
+    if (!settings.privacy.saveChatHistory) {
+    setMessages((prev) => prev.map((message) => message.id === "pending-assistant"
+      ? { ...message, content: normalizeText(content), pending: false }
+      : message));
+    return;
+    }
     const saved = await appendChatMessage(user.uid, threadId, {
       role: "assistant",
       content: normalizeText(content),
@@ -316,7 +328,7 @@ const AIAssistantPopup: React.FC = () => {
     updateThreadList(threadId, {
       lastMessagePreview: content,
     });
-  }, [updateThreadList, user]);
+  }, [settings.privacy.saveChatHistory, updateThreadList, user]);
 
   const sendNonStreaming = useCallback(
     async (threadId: string, userText: string) => {
@@ -325,6 +337,9 @@ const AIAssistantPopup: React.FC = () => {
         options: {
           temperature: settings.ai.temperature,
           maxTokens: settings.ai.maxTokens,
+          tone: settings.ai.tone,
+          responseLength: settings.ai.responseLength,
+          practicalBias: settings.ai.practicalBias,
         },
       };
 
@@ -379,6 +394,9 @@ const AIAssistantPopup: React.FC = () => {
             options: {
               temperature: settings.ai.temperature,
               maxTokens: settings.ai.maxTokens,
+              tone: settings.ai.tone,
+              responseLength: settings.ai.responseLength,
+              practicalBias: settings.ai.practicalBias,
             },
           }),
           signal: controller.signal,
@@ -433,12 +451,13 @@ const AIAssistantPopup: React.FC = () => {
       setInputMessage("");
 
       try {
-        const savedUser = await appendChatMessage(user.uid, activeThreadId, {
-          role: "user",
-          content: trimmed,
-        });
-
-        setMessages((prev) => prev.map((message) => (message.id === userMessage.id ? savedUser : message)));
+        if (settings.privacy.saveChatHistory) {
+          const savedUser = await appendChatMessage(user.uid, activeThreadId, {
+            role: "user",
+            content: trimmed,
+          });
+          setMessages((prev) => prev.map((message) => (message.id === userMessage.id ? savedUser : message)));
+        }
 
         const firstUserMessage = messages.find((message) => message.role === "user")?.content || trimmed;
         if (currentThread && currentThread.title === "New conversation") {
@@ -471,6 +490,7 @@ const AIAssistantPopup: React.FC = () => {
       sendStreaming,
       sending,
       settings.ai.streamingEnabled,
+      settings.privacy.saveChatHistory,
       user,
       updateThreadList,
     ],

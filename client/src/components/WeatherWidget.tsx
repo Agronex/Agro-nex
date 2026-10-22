@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Sun, Cloud, CloudRain, Droplets, Wind, Thermometer } from 'lucide-react';
+import { Sun, Cloud, CloudRain, Droplets, Wind, Thermometer, CloudDrizzle, CloudFog, CloudLightning, CloudSun, Snowflake } from 'lucide-react';
 import { WeatherData } from '../types';
 import { getWeatherData } from '../services/weatherService';
 import LoadingSpinner from './LoadingSpinner';
@@ -45,6 +45,7 @@ const WeatherWidget: React.FC = () => {
         temperature: weather.temperature,
         rainfall: weather.rainfall,
         windSpeed: weather.windSpeed,
+        forecast: weather.forecast,
         unit: { temp: '°C', wind: 'km/h', rain: 'mm' },
       };
     }
@@ -53,14 +54,32 @@ const WeatherWidget: React.FC = () => {
       temperature: Math.round((weather.temperature * 9) / 5 + 32),
       rainfall: Number((weather.rainfall / 25.4).toFixed(1)),
       windSpeed: Number((weather.windSpeed / 1.609).toFixed(1)),
+      forecast: weather.forecast.map((day) => ({
+        ...day,
+        temperature: {
+          max: Math.round((day.temperature.max * 9) / 5 + 32),
+          min: Math.round((day.temperature.min * 9) / 5 + 32),
+        },
+        rainfall: Number((day.rainfall / 25.4).toFixed(1)),
+      })),
       unit: { temp: '°F', wind: 'mph', rain: 'in' },
     };
   }, [settings.weather.units, weather]);
 
   const getWeatherIcon = (condition: string) => {
     switch (condition.toLowerCase()) {
-      case 'sunny': return <Sun className="w-8 h-8 text-yellow-500" />;
-      case 'rainy': return <CloudRain className="w-8 h-8 text-blue-500" />;
+      case 'clear': return <Sun className="w-8 h-8 text-yellow-500" />;
+      case 'mainly clear': return <Sun className="w-8 h-8 text-yellow-500" />;
+      case 'partly cloudy': return <CloudSun className="w-8 h-8 text-yellow-500" />;
+      case 'light drizzle': return <CloudDrizzle className="w-8 h-8 text-blue-500" />;
+      case 'light rain':
+      case 'rain':
+      case 'heavy rain':
+      case 'showers': return <CloudRain className="w-8 h-8 text-blue-500" />;
+      case 'foggy':
+      case 'rime fog': return <CloudFog className="w-8 h-8 text-gray-500" />;
+      case 'thunderstorm': return <CloudLightning className="w-8 h-8 text-purple-500" />;
+      case 'snow': return <Snowflake className="w-8 h-8 text-cyan-500" />;
       default: return <Cloud className="w-8 h-8 text-gray-500" />;
     }
   };
@@ -167,7 +186,7 @@ const WeatherWidget: React.FC = () => {
       <div>
         <h4 className="font-semibold text-gray-800 mb-3">5-Day Forecast</h4>
         <div className="space-y-2">
-          {weather.forecast.map((day, index) => (
+          {(display?.forecast || weather.forecast).map((day, index) => (
             <div key={index} className="flex items-center justify-between bg-white rounded-lg p-3">
               <div className="flex items-center space-x-3">
                 {getWeatherIcon(day.condition)}
@@ -180,7 +199,7 @@ const WeatherWidget: React.FC = () => {
               </div>
               <div className="text-right">
                 <p className="font-semibold text-gray-800">{day.temperature.max}°/{day.temperature.min}°</p>
-                <p className="text-xs text-blue-600">{day.rainfall}mm</p>
+                <p className="text-xs text-blue-600">{day.rainfall}{display?.unit.rain}</p>
               </div>
             </div>
           ))}

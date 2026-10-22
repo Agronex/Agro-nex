@@ -54,8 +54,9 @@ function buildTomorrowUrl(lat, lon) {
 // Fetch Open-Meteo with shared cache + distributed dedupe (Redis) + in-process dedupe
 export async function getOpenMeteoRaw(lat, lon, opts = {}) {
   const key = makeCacheKey(lat, lon);
-  const openKey = `open:${key}`;
-  const lockKey = `lock:open:${key}`;
+  const days = opts.days || 5;
+  const openKey = `open:${key}:${days}`;
+  const lockKey = `lock:open:${key}:${days}`;
 
   // Check fast in-memory / Redis cache
   const cached = await redisStore.getCached(openKey);
@@ -91,7 +92,7 @@ export async function getOpenMeteoRaw(lat, lon, opts = {}) {
   const promise = (async () => {
     // if we acquired lockToken, ensure we release it in finally
     let acquiredHere = Boolean(lockToken);
-    const url = buildOpenMeteoUrl(lat, lon, opts.days || 5);
+    const url = buildOpenMeteoUrl(lat, lon, days);
     logger.info("Open-Meteo request", { key, url, acquiredHere });
 
     try {
@@ -244,7 +245,11 @@ export async function getUV(lat, lon) {
   const promise = (async () => {
     const acquiredHere = Boolean(lockToken);
     const url = buildTomorrowUrl(lat, lon);
-    logger.info("Tomorrow.io request", { key, url, acquiredHere });
+    logger.info("Tomorrow.io request", {
+      key,
+      url: url.replace(/apikey=[^&]+/, "apikey=REDACTED"),
+      acquiredHere,
+    });
 
     try {
       const res = await fetchWithRetry(url, { timeout: 4000, retries: 1 });
@@ -313,8 +318,8 @@ export async function getWeatherSummary(lat, lon, { includeUV = false } = {}) {
     Array.isArray(openRaw?.daily?.time) && openRaw.daily.time.length > 0;
 
   // Safe humidity extraction
-  const now = new Date();
-  const currentHourISO = now.toISOString().slice(0, 13);
+  const localNow = new Date(Date.now() + (openRaw?.utc_offset_seconds || 0) * 1000);
+  const currentHourISO = localNow.toISOString().slice(0, 13);
   const hourlyTimes = openRaw?.hourly?.time || [];
   const humidityData = openRaw?.hourly?.relative_humidity_2m || [];
   const currentHourIndex = hourlyTimes.findIndex((t) => t.startsWith(currentHourISO));

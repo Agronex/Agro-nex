@@ -1,16 +1,14 @@
+import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import compression from "compression";
 import rateLimit from "express-rate-limit";
-import dotenv from "dotenv";
 
 import chatRoutes from "./routes/chatRoutes.js";
 import weatherRoutes from "./routes/weatherRoutes.js";
 import alertRoutes from "./routes/alertRoutes.js";
 import diseaseRoutes from "./routes/diseaseRoutes.js";
-
-dotenv.config();
 
 // ── Process-level error handlers — prevent silent crashes ─────────────────────
 process.on("uncaughtException", (err) => {
@@ -21,12 +19,20 @@ process.on("unhandledRejection", (reason) => {
 });
 
 const app = express();
+app.set("trust proxy", 1);
 
 // ── Security headers ─────────────────────────────────────────────────────────
 app.use(helmet());
 
 // ── Response compression ──────────────────────────────────────────────────────
-app.use(compression());
+app.use(
+  compression({
+    filter: (req, res) => {
+      if (req.path.startsWith("/chat/stream")) return false;
+      return compression.filter(req, res);
+    },
+  })
+);
 
 // ── CORS — allow configured origins plus Vercel preview domains ──────────────
 const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
@@ -38,7 +44,7 @@ function isAllowedOrigin(origin) {
   if (origin === "http://localhost:5173") return true;
   if (ALLOWED_ORIGINS.includes(origin)) return true;
   // Allow any Vercel deployment / preview URL unless explicitly overridden
-  return /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin);
+  return /^https:\/\/agro-nex(-[a-z0-9-]+)?\.vercel\.app$/i.test(origin);
 }
 
 app.use(
@@ -46,7 +52,9 @@ app.use(
     origin: (origin, callback) => {
       // Allow requests with no origin (mobile apps, curl, Render health checks)
       if (isAllowedOrigin(origin)) return callback(null, true);
-      callback(new Error(`CORS: origin ${origin} not allowed`));
+      const err = new Error(`CORS: origin ${origin} not allowed`);
+      err.status = 403;
+      callback(err);
     },
     methods: ["GET", "POST", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -57,7 +65,10 @@ app.use(express.json({ limit: "512kb" }));
 
 // ── Request timeout middleware ────────────────────────────────────────────────
 app.use((req, res, next) => {
-  const timeoutMs = req.path.startsWith("/chat/stream") ? 60000 : 30000;
+  const timeoutMs =
+    req.path.startsWith("/chat/stream") || req.path.startsWith("/disease")
+      ? 65000
+      : 30000;
   req.setTimeout(timeoutMs);
   res.setTimeout(timeoutMs, () => {
     if (!res.headersSent) {
@@ -112,14 +123,19 @@ app.use((err, req, res, _next) => {
 
 // ── Start ─────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
-const server = app.listen(PORT, "0.0.0.0", () => {
-  console.log(`✅ AgroNex server running on port ${PORT}`);
-});
+const server =
+  process.env.NODE_ENV === "test"
+    ? null
+    : app.listen(PORT, "0.0.0.0", () => {
+        console.log(`✅ AgroNex server running on port ${PORT}`);
+      });
+
+export default app;
 
 // ── Graceful shutdown ─────────────────────────────────────────────────────────
 function gracefulShutdown(signal) {
   console.log(`\n🛑 ${signal} received — shutting down gracefully…`);
-  server.close(() => {
+  server?.close(() => {
     console.log("✅ HTTP server closed.");
     process.exit(0);
   });
