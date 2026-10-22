@@ -1,0 +1,73 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidString(value, minLen, maxLen) {
+      return value is string && value.size() >= minLen && value.size() <= maxLen;
+    }
+
+    match /users/{userId} {
+      allow read, delete: if isOwner(userId);
+      allow create, update: if isOwner(userId);
+
+      match /settings/{settingDoc} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /chatThreads/{threadId} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId);
+
+        match /messages/{messageId} {
+          allow read, delete: if isOwner(userId);
+          allow create, update: if isOwner(userId)
+            && request.resource.data.role in ['user', 'assistant']
+            && isValidString(request.resource.data.content, 1, 8000);
+        }
+      }
+
+      match /cropRecords/{recordId} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId)
+          && isValidString(request.resource.data.cropName, 1, 100)
+          && request.resource.data.area is number
+          && request.resource.data.area > 0;
+      }
+
+      match /activities/{activityId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    match /communityPosts/{postId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.authorId == request.auth.uid;
+      allow delete: if isSignedIn() && resource.data.authorId == request.auth.uid;
+      allow update: if isSignedIn() && (
+        resource.data.authorId == request.auth.uid ||
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['likes', 'likedBy', 'replies'])
+      );
+
+      match /replies/{replyId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn() && request.resource.data.authorId == request.auth.uid;
+        allow delete: if isSignedIn() && (
+          resource.data.authorId == request.auth.uid ||
+          get(/databases/$(database)/documents/communityPosts/$(postId)).data.authorId == request.auth.uid
+        );
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

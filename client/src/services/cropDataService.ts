@@ -14,11 +14,11 @@ const PRIORITY_COMMODITIES = [
   'Corn', 'Mustard', 'Sugarcane', 'Paddy', 'Maize',
 ];
 
-export async function getCropPrices(): Promise<CropPrice[]> {
+export async function getCropPrices(forceRefresh = false): Promise<CropPrice[]> {
   // Check localStorage cache first
   try {
     const raw = localStorage.getItem(PRICE_CACHE_KEY);
-    if (raw) {
+    if (!forceRefresh && raw) {
       const { data, timestamp } = JSON.parse(raw);
       if (Date.now() - timestamp < PRICE_CACHE_TTL && Array.isArray(data) && data.length > 0) {
         return data;
@@ -46,20 +46,20 @@ export async function getCropPrices(): Promise<CropPrice[]> {
     if (!Array.isArray(result.records)) throw new Error('Invalid market API response');
 
     const formatted: CropPrice[] = result.records.map((item: any, index: number) => {
-      const currentPrice  = parseFloat(item.modal_price) || 0;
-      const previousPrice = parseFloat(item.min_price)   || 0;
-      const change        = currentPrice - previousPrice;
-      const changePercent = previousPrice
-        ? parseFloat(((change / previousPrice) * 100).toFixed(2))
-        : 0;
+      const minPrice = parseFloat(item.min_price) || 0;
+      const modalPrice = parseFloat(item.modal_price) || 0;
+      const maxPrice = parseFloat(item.max_price) || 0;
 
       return {
         id:             String(index),
         name:           item.commodity || 'Unknown',
-        currentPrice,
-        previousPrice,
-        change,
-        changePercent,
+        currentPrice: modalPrice,
+        previousPrice: minPrice,
+        minPrice,
+        modalPrice,
+        maxPrice,
+        change: 0,
+        changePercent: 0,
         unit:           '₹/quintal',
         market:         item.market || 'Market',
       };

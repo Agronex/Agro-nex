@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { LogOut, Edit2 } from "lucide-react";
 import { auth, db } from "../firebase";
 import { signOut, updateProfile } from "firebase/auth";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 
 interface ProfileMenuProps {
   onClose: () => void;
@@ -39,6 +39,8 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({ onClose }) => {
       };
 
       fetchProfile();
+    } else {
+      setLoading(false);
     }
   }, []);
 
@@ -55,9 +57,10 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({ onClose }) => {
       });
 
       // Update in Firestore
-      await updateDoc(doc(db, "users", user.uid), {
+      await setDoc(doc(db, "users", user.uid), {
         username: username,
-      });
+        updatedAt: new Date(),
+      }, { merge: true });
 
       setIsEditing(false);
     } catch (err) {
@@ -72,8 +75,6 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({ onClose }) => {
     try {
       await signOut(auth);
       onClose();
-      // Optionally redirect to login page
-      window.location.href = "/login";
     } catch (err) {
       console.error("Error signing out:", err);
     }

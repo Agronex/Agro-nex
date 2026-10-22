@@ -45,7 +45,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, alerts }) => {
 
     // Read active crop count from Farm Logbook localStorage
     try {
-      const raw = localStorage.getItem('farm-records');
+      const raw = localStorage.getItem(`farm-records-${localStorage.getItem('agronex_user_uid') || 'guest'}`) ||
+        localStorage.getItem('farm-records');
       if (raw) {
         const records: CropRecord[] = JSON.parse(raw);
         const active = records.filter(r => r.status === 'growing' || r.status === 'planted').length;
@@ -64,7 +65,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, alerts }) => {
     const handleFocus = () => {
       setRecentActivity(getRecentActivity().slice(0, 5));
       try {
-        const raw = localStorage.getItem('farm-records');
+        const raw = localStorage.getItem(`farm-records-${localStorage.getItem('agronex_user_uid') || 'guest'}`) ||
+          localStorage.getItem('farm-records');
         if (raw) {
           const records: CropRecord[] = JSON.parse(raw);
           const active = records.filter(r => r.status === 'growing' || r.status === 'planted').length;
@@ -93,29 +95,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, alerts }) => {
     return (
       <div className="flex items-center justify-center h-96">
         <LoadingSpinner size="lg" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-center p-6 bg-yellow-50 rounded-lg border border-yellow-200">
-          <AlertTriangle className="w-12 h-12 text-yellow-600 mx-auto mb-3" />
-          <p className="text-yellow-800 font-medium mb-4">{error}</p>
-          <Button onClick={fetchData} variant="secondary" size="md">Retry</Button>
-        </div>
-      </div>
-    );
-  }
-
-  if (!weather) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-center p-6 bg-yellow-50 rounded-lg border border-yellow-200">
-          <p className="text-yellow-800 font-medium mb-4">Weather data unavailable</p>
-          <Button onClick={fetchData} variant="secondary" size="md">Retry</Button>
-        </div>
       </div>
     );
   }
@@ -155,6 +134,13 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, alerts }) => {
         </div>
       )}
 
+      {error && (
+        <div className="flex items-center justify-between rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
+          <span>Weather is temporarily unavailable. Other farm tools remain available.</span>
+          <Button onClick={fetchData} variant="secondary" size="sm">Retry</Button>
+        </div>
+      )}
+
       {/* Quick Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         <QuickStatCard
@@ -167,8 +153,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, alerts }) => {
           label="Humidity"
           value={`${weather?.humidity ?? '--'}%`}
           icon={<Droplets className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />}
-          change={weather.humidity > 75 ? 'High — fungal risk' : 'Normal'}
-          changeType={weather.humidity > 75 ? 'decrease' : 'increase'}
+          change={weather ? (weather.humidity > 75 ? 'High — fungal risk' : 'Normal') : 'Unavailable'}
+          changeType={weather && weather.humidity > 75 ? 'decrease' : 'increase'}
         />
         <QuickStatCard
           label="Active Crops"
@@ -191,13 +177,13 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, alerts }) => {
           <div className="bg-green-50 border border-green-200 rounded-lg p-3 sm:p-4">
             <h4 className="font-medium text-green-800 mb-1 text-sm sm:text-base">🌱 Irrigation</h4>
             <p className="text-xs sm:text-sm text-green-700">
-              Based on current humidity ({weather.humidity}%) and {getRainDetails(weather)}, {getIrrigationAdvice(weather)}.
+              {weather ? `Based on current humidity (${weather.humidity}%) and ${getRainDetails(weather)}, ${getIrrigationAdvice(weather)}.` : 'Weather data is unavailable; check again before changing irrigation.'}
             </p>
           </div>
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
             <h4 className="font-medium text-blue-800 mb-1 text-sm sm:text-base">🔬 Crop Monitoring</h4>
             <p className="text-xs sm:text-sm text-blue-700">
-              {weather.humidity > 75
+              {weather && weather.humidity > 75
                 ? `High humidity (${weather.humidity}%) — inspect crops for early signs of fungal disease. Apply preventive fungicides if needed.`
                 : `Conditions are suitable for crop growth. Regular monitoring is recommended.`}
             </p>
@@ -205,11 +191,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, alerts }) => {
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 sm:p-4">
             <h4 className="font-medium text-yellow-800 mb-1 text-sm sm:text-base">☀️ Weather</h4>
             <p className="text-xs sm:text-sm text-yellow-700">
-              {weather.temperature > 35
+              {weather && weather.temperature > 35
                 ? `High temperature (${weather.temperature}°C). Ensure adequate watering and consider shade nets.`
-                : weather.temperature < 15
+                : weather && weather.temperature < 15
                 ? `Cool temperature (${weather.temperature}°C). Protect frost-sensitive crops overnight.`
-                : `Temperature is ${weather.temperature}°C — favorable for most crops. Wind: ${weather.windSpeed} km/h.`}
+                : weather ? `Temperature is ${weather.temperature}°C — favorable for most crops. Wind: ${weather.windSpeed} km/h.` : 'Weather data is unavailable.'}
             </p>
           </div>
           <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 sm:p-4">

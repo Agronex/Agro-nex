@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Bell, User, Menu, X, Sun, Cloud, CloudRain, CheckCheck } from 'lucide-react';
+import { Bell, User, Menu, X, Sun, Cloud, CheckCheck } from 'lucide-react';
 import { Alert } from '../types';
 import ProfileMenu from '../components/ProfileMenu';
 

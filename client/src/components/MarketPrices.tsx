@@ -20,7 +20,7 @@ const MarketPrices: React.FC = () => {
     }
 
     try {
-      const data = await getCropPrices();
+      const data = await getCropPrices(isRefresh);
       setPrices(data);
       setLastUpdated(new Date());
     } catch (err) {
@@ -129,12 +129,22 @@ const MarketPrices: React.FC = () => {
                  <div className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${getTrendColor(crop.change)}`}>
                    {getTrendIcon(crop.change)}
                    <span>
-                     {crop.change > 0 ? '+' : ''}{crop.change} ({crop.changePercent > 0 ? '+' : ''}{crop.changePercent}%)
+                     Modal: {crop.modalPrice.toLocaleString()}
                    </span>
                  </div>
                </div>
              </div>
               
+             <div className="mt-2">
+               <div className="flex justify-between text-xs text-gray-500">
+                 <span>Min ₹{crop.minPrice.toLocaleString()}</span>
+                 <span>Max ₹{crop.maxPrice.toLocaleString()}</span>
+               </div>
+               <div className="relative mt-1 h-2 rounded-full bg-gray-200">
+                 <div className="absolute inset-y-0 left-0 rounded-full bg-green-400" style={{ width: `${crop.maxPrice ? Math.min(100, (crop.modalPrice / crop.maxPrice) * 100) : 0}%` }} />
+               </div>
+             </div>
+
              {/* Previous Price */}
              <div className="mt-2 pt-2 border-t border-gray-100">
                <span className="text-xs text-gray-500">

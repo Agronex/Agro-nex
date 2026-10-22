@@ -3,7 +3,7 @@ import { BACKEND_URL } from '../config/backend';
 
 const CACHE_KEY = 'agronex_weather_v2';
 const CACHE_TTL = 10 * 60 * 1000; // 10 minutes (matches server cache)
-const REQUEST_TIMEOUT = 10_000;
+const REQUEST_TIMEOUT = 25_000;
 const GEO_TIMEOUT_MS = 5_000;
 
 function isFallbackWeather(data: any): boolean {
@@ -38,8 +38,8 @@ function mapWeatherCode(code: number) {
 }
 
 function normalizeWeather(openRaw: any) {
-  const now = new Date();
-  const currentHourISO = now.toISOString().slice(0, 13);
+  const localNow = new Date(Date.now() + (openRaw?.utc_offset_seconds || 0) * 1000);
+  const currentHourISO = localNow.toISOString().slice(0, 13);
   const hourlyTimes = openRaw?.hourly?.time || [];
   const humidityData = openRaw?.hourly?.relative_humidity_2m || [];
   const currentHourIndex = hourlyTimes.findIndex((t: string) => t.startsWith(currentHourISO));
@@ -99,7 +99,10 @@ async function fetchDirectWeather(lat: number, lon: number) {
  * - Reads from localStorage cache first (survives page refresh).
  * - Uses backend first, then falls back to direct Open-Meteo only if backend returns fallback zeros.
  */
-export async function getWeatherData(): Promise<any> {
+export async function getWeatherData(
+  fallbackLat = 10.9601,
+  fallbackLon = 79.3845,
+): Promise<any> {
   // Cache check
   try {
     const raw = localStorage.getItem(CACHE_KEY);
@@ -112,14 +115,22 @@ export async function getWeatherData(): Promise<any> {
   }
 
   // Geolocation
-  const position = await new Promise<GeolocationPosition>((resolve, reject) =>
-    navigator.geolocation.getCurrentPosition(resolve, reject, {
-      timeout: GEO_TIMEOUT_MS,
-      maximumAge: 5 * 60_000,
-    })
-  );
-
-  const { latitude: lat, longitude: lon } = position.coords;
+  let lat = fallbackLat;
+  let lon = fallbackLon;
+  if (navigator.geolocation) {
+    try {
+      const position = await new Promise<GeolocationPosition>((resolve, reject) =>
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          timeout: GEO_TIMEOUT_MS,
+          maximumAge: 5 * 60_000,
+        }),
+      );
+      lat = position.coords.latitude;
+      lon = position.coords.longitude;
+    } catch {
+      // Use the configured/default farm coordinates when location access is unavailable.
+    }
+  }
 
   // Primary backend fetch with one retry
   for (let attempt = 0; attempt < 2; attempt++) {

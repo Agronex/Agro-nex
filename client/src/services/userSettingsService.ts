@@ -72,7 +72,10 @@ export async function saveUserSettings(uid: string, settings: UserSettings): Pro
 export function applySettingsToDocument(settings: UserSettings): void {
   const root = document.documentElement;
   root.style.setProperty("--agronex-font-scale", `${settings.appearance.fontScale}%`);
-  root.dataset.theme = settings.appearance.theme;
+  const theme = settings.appearance.theme === "system"
+    ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+    : settings.appearance.theme;
+  root.dataset.theme = theme;
   root.dataset.contrast = settings.appearance.highContrast ? "high" : "normal";
   root.dataset.density = settings.appearance.density;
   root.dataset.reducedMotion = settings.appearance.reducedMotion ? "true" : "false";
