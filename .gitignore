@@ -3,7 +3,7 @@ node_modules/
 CropDiseaseDetection/
 # If using pnpm
 .pnpm-store/
-
+agronex_production_blueprint.md
 # Build outputs
 dist/
 build/
