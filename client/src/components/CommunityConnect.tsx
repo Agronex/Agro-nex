@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import {
   MessageCircle,
   ThumbsUp,
@@ -16,17 +16,19 @@ import {
   addDoc,
   onSnapshot,
   query,
+  limit,
   orderBy,
   doc,
   updateDoc,
   increment,
+  arrayUnion,
+  getDocs,
   serverTimestamp,
   deleteDoc,
 } from "firebase/firestore";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { useDebouncedCallback } from "../utils/debounce";
 import Button from "./Button";
-import Card from "./Card";
 
 interface CommunityPost {
   id: string;
@@ -37,6 +39,8 @@ interface CommunityPost {
   timestamp: any;
   likes: number;
   replies: number;
+  authorId: string;
+  likedBy?: string[];
 }
 
 interface ReplyType {
@@ -83,7 +87,7 @@ const CommunityConnect: React.FC = () => {
 
   // Fetch posts
   useEffect(() => {
-    const q = query(collection(db, "communityPosts"), orderBy("timestamp", "desc"));
+    const q = query(collection(db, "communityPosts"), orderBy("timestamp", "desc"), limit(25));
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
@@ -109,31 +113,17 @@ const CommunityConnect: React.FC = () => {
     return () => unsubscribeAuth();
   }, []);
 
-  // Listen to replies for each post
   useEffect(() => {
-    const unsubscribes: (() => void)[] = [];
-    posts.forEach((post) => {
-      const repliesQuery = query(
-        collection(db, "communityPosts", post.id, "replies"),
-        orderBy("timestamp", "asc")
-      );
-      const unsub = onSnapshot(
-        repliesQuery,
-        (snapshot) => {
-          const postReplies: ReplyType[] = snapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...(doc.data() as Omit<ReplyType, "id">),
-          }));
-          setReplies((prev) => ({ ...prev, [post.id]: postReplies }));
-        },
-        (error) => {
-          console.error("Error fetching replies for post:", error);
-        }
-      );
-      unsubscribes.push(unsub);
+    if (!activeReplyPost) return;
+    const repliesQuery = query(collection(db, "communityPosts", activeReplyPost, "replies"), orderBy("timestamp", "asc"));
+    return onSnapshot(repliesQuery, (snapshot) => {
+      const postReplies: ReplyType[] = snapshot.docs.map((replyDoc) => ({
+        id: replyDoc.id,
+        ...(replyDoc.data() as Omit<ReplyType, "id">),
+      }));
+      setReplies((prev) => ({ ...prev, [activeReplyPost]: postReplies }));
     });
-    return () => unsubscribes.forEach((unsub) => unsub());
-  }, [posts]);
+  }, [activeReplyPost]);
 
   const handleSubmitPost = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -152,9 +142,11 @@ const CommunityConnect: React.FC = () => {
         title: newPost.title,
         content: newPost.content,
         category: newPost.category,
+        authorId: currentUser.uid,
         timestamp: serverTimestamp(),
         likes: 0,
         replies: 0,
+        likedBy: [],
       });
       setNewPost({ title: "", content: "", category: "question" });
       setShowNewPost(false);
@@ -169,6 +161,8 @@ const CommunityConnect: React.FC = () => {
 
   const handleDeletePost = async (postId: string) => {
     try {
+      const replySnapshot = await getDocs(collection(db, "communityPosts", postId, "replies"));
+      await Promise.all(replySnapshot.docs.map((replyDoc) => deleteDoc(replyDoc.ref)));
       await deleteDoc(doc(db, "communityPosts", postId));
       setDeleteConfirm(null);
       setSuccessMessage('Post deleted successfully!');
@@ -184,11 +178,13 @@ const CommunityConnect: React.FC = () => {
     }
     
     if (likeInProgress.has(postId)) return;
+    const post = posts.find((item) => item.id === postId);
+    if (post?.likedBy?.includes(currentUser.uid)) return;
 
     setLikeInProgress(prev => new Set(prev).add(postId));
     try {
       const postRef = doc(db, "communityPosts", postId);
-      await updateDoc(postRef, { likes: increment(1) });
+      await updateDoc(postRef, { likes: increment(1), likedBy: arrayUnion(currentUser.uid) });
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : "Failed to like post";
       showError("Error: " + errorMsg);
@@ -234,6 +230,7 @@ const CommunityConnect: React.FC = () => {
           "Anonymous",
         content: replyText,
         timestamp: serverTimestamp(),
+        authorId: currentUser?.uid,
       });
 
       const postRef = doc(db, "communityPosts", postId);
@@ -297,7 +294,7 @@ const CommunityConnect: React.FC = () => {
         <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center justify-between">
           <p className="text-green-800 font-medium">{successMessage}</p>
           <button
-            onClick={() => setSuccessMessage(null)}
+            onClick={() => setSuccessMessage('')}
             className="text-green-600 hover:text-green-700"
           >
             ✕
@@ -308,7 +305,7 @@ const CommunityConnect: React.FC = () => {
         <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center justify-between">
           <p className="text-red-800 font-medium">{errorMessage}</p>
           <button
-            onClick={() => setErrorMessage(null)}
+            onClick={() => setErrorMessage('')}
             className="text-red-600 hover:text-red-700"
           >
             ✕
@@ -478,7 +475,7 @@ const CommunityConnect: React.FC = () => {
                 >
                   {post.category}
                 </span>
-                {currentUser?.displayName === post.author && (
+                {(currentUser?.uid === post.authorId || currentUser?.displayName === post.author) && (
                   <button
                     onClick={() => setDeleteConfirm(post.id)}
                     className="p-1 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
@@ -634,4 +631,3 @@ const CommunityConnect: React.FC = () => {
 };
 
 export default CommunityConnect;
-

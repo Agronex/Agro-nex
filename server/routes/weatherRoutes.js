@@ -13,11 +13,23 @@ router.post("/", async (req, res) => {
     if (lat == null || lon == null) {
       return res.status(400).json({ error: "Missing lat/lon" });
     }
+    const parsedLat = Number(lat);
+    const parsedLon = Number(lon);
+    if (
+      Number.isNaN(parsedLat) ||
+      Number.isNaN(parsedLon) ||
+      parsedLat < -90 ||
+      parsedLat > 90 ||
+      parsedLon < -180 ||
+      parsedLon > 180
+    ) {
+      return res.status(400).json({ error: "Invalid latitude or longitude" });
+    }
 
     // include UV only if TOMORROW_KEY is configured; service decides actual call
     const includeUV = Boolean(process.env.TOMORROW_KEY);
 
-    const result = await weatherService.getWeatherSummary(lat, lon, { includeUV });
+    const result = await weatherService.getWeatherSummary(parsedLat, parsedLon, { includeUV });
 
     const took = Date.now() - start;
     logger.info("/weather response", { took, lat, lon });

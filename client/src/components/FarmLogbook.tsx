@@ -5,11 +5,15 @@ import { useLocalStorage } from '../hooks/useLocalStorage';
 import { formatDate, getDaysDifference } from '../utils/dateUtils';
 import { addActivity } from '../utils/activityStore';
 import Button from './Button';
-import Input from './Input';
 import Card from './Card';
+import { useAuth } from '../contexts/AuthContext';
+import { db } from '../firebase';
+import { deleteDoc, doc, setDoc } from 'firebase/firestore';
 
 const FarmLogbook: React.FC = () => {
-  const [records, setRecords] = useLocalStorage<CropRecord[]>('farm-records', []);
+  const { user } = useAuth();
+  const storageKey = `farm-records-${user?.uid || 'guest'}`;
+  const [records, setRecords] = useLocalStorage<CropRecord[]>(storageKey, []);
   const [showForm, setShowForm] = useState(false);
   const [editingRecord, setEditingRecord] = useState<CropRecord | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -40,7 +44,9 @@ const FarmLogbook: React.FC = () => {
       expectedHarvest: formData.expectedHarvest,
       area: parseFloat(formData.area),
       location: formData.location,
-      status: new Date() > new Date(formData.expectedHarvest) ? 'harvested' : 'growing',
+      status: new Date() > new Date(formData.expectedHarvest)
+        ? 'harvested'
+        : new Date(formData.plantingDate) >= new Date(new Date().toDateString()) ? 'planted' : 'growing',
       notes: formData.notes
     };
 
@@ -48,12 +54,14 @@ const FarmLogbook: React.FC = () => {
       setRecords(records.map(record =>
         record.id === editingRecord.id ? newRecord : record
       ));
+      if (user) void setDoc(doc(db, 'users', user.uid, 'cropRecords', newRecord.id), newRecord, { merge: true });
       showSuccess('Record updated successfully');
-      addActivity({ type: 'logbook_edit', title: 'Crop record updated', detail: `${newRecord.cropName} (${newRecord.area} ha)`, color: 'blue' });
+      addActivity({ type: 'logbook_edit', title: 'Crop record updated', detail: `${newRecord.cropName} (${newRecord.area} ha)`, color: 'blue' }, user?.uid);
     } else {
       setRecords([newRecord, ...records]);
+      if (user) void setDoc(doc(db, 'users', user.uid, 'cropRecords', newRecord.id), newRecord);
       showSuccess('Record added successfully');
-      addActivity({ type: 'logbook_add', title: 'New crop record added', detail: `${newRecord.cropName} — ${newRecord.area} ha at ${newRecord.location || 'unknown location'}`, color: 'green' });
+      addActivity({ type: 'logbook_add', title: 'New crop record added', detail: `${newRecord.cropName} — ${newRecord.area} ha at ${newRecord.location || 'unknown location'}`, color: 'green' }, user?.uid);
     }
 
     resetForm();
@@ -94,9 +102,10 @@ const FarmLogbook: React.FC = () => {
   const confirmDelete = (id: string) => {
     const rec = records.find(r => r.id === id);
     setRecords(records.filter(record => record.id !== id));
+    if (user) void deleteDoc(doc(db, 'users', user.uid, 'cropRecords', id));
     setDeleteConfirm(null);
     showSuccess('Record deleted successfully');
-    if (rec) addActivity({ type: 'logbook_delete', title: 'Crop record removed', detail: rec.cropName, color: 'red' });
+    if (rec) addActivity({ type: 'logbook_delete', title: 'Crop record removed', detail: rec.cropName, color: 'red' }, user?.uid);
   };
 
   const getStatusColor = (status: string) => {
@@ -258,7 +267,7 @@ const FarmLogbook: React.FC = () => {
       {records.length > 0 ? (
         <div className="space-y-4">
           {records.map((record) => (
-            <div key={record.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow">
+            <div key={record.id} className="relative border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center space-x-3 mb-2">

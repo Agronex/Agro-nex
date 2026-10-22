@@ -1,54 +1,24 @@
 services:
-  # ─────────────────────────────────────────────────────────────────────────────
-  # 1. Python ML Service
-  #    rootDir: ml_backend
-  #    Start:   gunicorn ml_service:app
-  # ─────────────────────────────────────────────────────────────────────────────
-  - type: web
-    name: agronex-ml
-    env: python
-    region: oregon
-    plan: free
-    rootDir: ml_backend
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn ml_service:app -w 1 --timeout 120 --bind 0.0.0.0:$PORT
-    healthCheckPath: /health
-    envVars:
-      - key: TTA_STEPS
-        value: "3"          # 3 for speed on free tier; increase for accuracy
-      - key: MAX_IMG_MB
-        value: "8"
-      # Set this after deploying agronex-frontend to your Vercel URL:
-      # - key: ALLOWED_ORIGIN
-      #   value: https://your-app.vercel.app
-
-  # ─────────────────────────────────────────────────────────────────────────────
-  # 2. Node.js Backend
-  #    rootDir: server
-  # ─────────────────────────────────────────────────────────────────────────────
   - type: web
     name: agronex-backend
     env: node
     region: oregon
     plan: free
     rootDir: server
-    buildCommand: npm ci --only=production
+    buildCommand: npm ci --omit=dev
     startCommand: npm start
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
       - key: ML_SERVICE_URL
-        fromService:
-          type: web
-          name: agronex-ml
-          envVarKey: RENDER_EXTERNAL_URL
+        sync: false
       # Comma-separated list of allowed CORS origins.
       # Set this after deploying agronex-frontend to your Vercel URL:
       # - key: ALLOWED_ORIGINS
       #   value: https://your-app.vercel.app
       # Secrets — set these manually in the Render dashboard (do NOT commit):
-      # - key: HF_TOKEN
+      # - key: GITHUB_TOKEN
       #   sync: false
       # - key: TOMORROW_KEY
       #   sync: false

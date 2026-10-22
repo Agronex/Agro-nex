@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
-import { auth, googleProvider } from "../firebase";
+import { auth, db, googleProvider } from "../firebase";
+import { doc, setDoc } from "firebase/firestore";
 import Signup from "./Signup";
 import farmImg from "../images/farm2.jpg";
 import Button from "./Button";
@@ -50,7 +51,11 @@ const Login: React.FC = () => {
     setError("");
     setGoogleLoading(true);
     try {
-      await signInWithPopup(auth, googleProvider);
+      const result = await signInWithPopup(auth, googleProvider);
+      await setDoc(doc(db, "users", result.user.uid), {
+        username: result.user.displayName || "Farmer",
+        email: result.user.email || "",
+      }, { merge: true });
       // AuthContext's onAuthStateChanged will handle the redirect
     } catch (err: any) {
       if (err.code !== "auth/popup-closed-by-user") {
