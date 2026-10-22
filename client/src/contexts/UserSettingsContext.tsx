@@ -17,10 +17,16 @@ export const UserSettingsProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [settings, setSettings] = useState<UserSettings>(DEFAULT_USER_SETTINGS);
   const [loading, setLoading] = useState(true);
 
+  // Guarantee default light theme is applied on initial mount
+  useEffect(() => {
+    applySettingsToDocument(DEFAULT_USER_SETTINGS);
+  }, []);
+
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
       setSettings(DEFAULT_USER_SETTINGS);
+      applySettingsToDocument(DEFAULT_USER_SETTINGS);
       setLoading(false);
       return;
     }
