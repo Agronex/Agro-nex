@@ -20,7 +20,11 @@ function normalizeSettings(raw: Partial<UserSettings> | undefined): UserSettings
     ai: { ...DEFAULT_USER_SETTINGS.ai, ...raw?.ai },
     weather: { ...DEFAULT_USER_SETTINGS.weather, ...raw?.weather },
     notifications: { ...DEFAULT_USER_SETTINGS.notifications, ...raw?.notifications },
-    appearance: { ...DEFAULT_USER_SETTINGS.appearance, ...raw?.appearance },
+    appearance: {
+      ...DEFAULT_USER_SETTINGS.appearance,
+      ...raw?.appearance,
+      theme: raw?.appearance?.theme ?? DEFAULT_USER_SETTINGS.appearance.theme,
+    },
     privacy: { ...DEFAULT_USER_SETTINGS.privacy, ...raw?.privacy },
     session: { ...DEFAULT_USER_SETTINGS.session, ...raw?.session },
   };
@@ -71,14 +75,15 @@ export async function saveUserSettings(uid: string, settings: UserSettings): Pro
 
 export function applySettingsToDocument(settings: UserSettings): void {
   const root = document.documentElement;
-  root.style.setProperty("--agronex-font-scale", `${settings.appearance.fontScale}%`);
-  const theme = settings.appearance.theme === "system"
+  root.style.setProperty("--agronex-font-scale", `${settings.appearance?.fontScale ?? 100}%`);
+  const configuredTheme = settings.appearance?.theme || "light";
+  const theme = configuredTheme === "system"
     ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
-    : settings.appearance.theme;
+    : (configuredTheme === "dark" ? "dark" : "light");
   root.dataset.theme = theme;
-  root.dataset.contrast = settings.appearance.highContrast ? "high" : "normal";
-  root.dataset.density = settings.appearance.density;
-  root.dataset.reducedMotion = settings.appearance.reducedMotion ? "true" : "false";
+  root.dataset.contrast = settings.appearance?.highContrast ? "high" : "normal";
+  root.dataset.density = settings.appearance?.density ?? "comfortable";
+  root.dataset.reducedMotion = settings.appearance?.reducedMotion ? "true" : "false";
 }
 
 export function isQuietHours(settings: UserSettings, now = new Date()): boolean {

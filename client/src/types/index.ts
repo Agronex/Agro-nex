@@ -86,7 +86,7 @@ export type ChatResponseLength = 'short' | 'balanced' | 'detailed';
 export type ChatResponseTone = 'professional' | 'friendly' | 'coach';
 export type WeatherUnit = 'metric' | 'imperial';
 export type DensityMode = 'comfortable' | 'compact';
-export type ThemeMode = 'system' | 'light' | 'dark';
+export type ThemeMode = 'light' | 'system' | 'dark';
 export type DigestFrequency = 'never' | 'daily' | 'weekly';
 export type DefaultView = 'dashboard' | 'weather' | 'disease-detection' | 'market-prices' | 'yield-prediction' | 'farm-logbook' | 'community' | 'settings';
 
@@ -194,7 +194,7 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
     soundEnabled: true,
   },
   appearance: {
-    theme: 'system',
+    theme: 'light',
     fontScale: 100,
     density: 'comfortable',
     highContrast: false,

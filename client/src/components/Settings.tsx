@@ -438,8 +438,8 @@ const SettingsPanel: React.FC = () => {
           value={settings.appearance.theme}
           onChange={(value) => update((current) => ({ ...current, appearance: { ...current.appearance, theme: value as UserSettings["appearance"]["theme"] } }))}
           options={[
+            { value: "light", label: "Light (Default)" },
             { value: "system", label: "System" },
-            { value: "light", label: "Light" },
             { value: "dark", label: "Dark" },
           ]}
         />
