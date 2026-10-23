@@ -311,11 +311,27 @@ jobs:
             "$BACKEND_URL/alerts?lat=10.96&lon=79.38" > "$alerts"
           jq -e 'type == "array"' "$alerts" > /dev/null
 
-          curl --fail --silent --show-error --retry 2 --max-time 60 \
-            -X POST "$BACKEND_URL/weather" \
-            -H "Content-Type: application/json" \
-            --data '{"lat":10.96,"lon":79.38}' > "$weather"
-          jq -e '.forecast | type == "array" and length >= 5' "$weather" > /dev/null
+          weather_ok=0
+          for attempt in {1..3}; do
+            curl --fail --silent --show-error --retry 2 --max-time 60 \
+              -X POST "$BACKEND_URL/weather" \
+              -H "Content-Type: application/json" \
+              --data '{"lat":10.96,"lon":79.38}' > "$weather"
+            if jq -e '.forecast | type == "array" and length >= 5' "$weather" > /dev/null; then
+              weather_ok=1
+              break
+            fi
+            echo "Attempt $attempt: /weather returned an incomplete forecast payload."
+            if [[ "$attempt" -lt 3 ]]; then
+              sleep 5
+            fi
+          done
+
+          if [[ "$weather_ok" -ne 1 ]]; then
+            echo "::error::/weather did not return at least 5 forecast entries after retries."
+            cat "$weather"
+            exit 1
+          fi
 
       - name: Report scheduled check context
         if: github.event_name == 'schedule'
